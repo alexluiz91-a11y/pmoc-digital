@@ -1522,20 +1522,7 @@ function fazerLogin() {
 }
 
 
-function saveDb() {
-  localStorage.setItem('pmoc_v2', JSON.stringify(db));
-  if (currentUser && currentUser.gdrive && gapiReady) {
-    clearTimeout(driveSaveTimer);
-    driveSaveTimer = setTimeout(salvarNoDrive, 3000);
-  }
-}
-
-window.addEventListener('load', () => {
-  setTimeout(initGoogleDrive, 1000);
-  setTimeout(initGoogleDrive, 3000);
-});
-
-function initGoogleDrive() { /* replaced by Firebase */ }
+// (legacy Drive code removed)
 
 function loginComGDrive() {
   const btn = document.querySelector('.gdrive-btn');
