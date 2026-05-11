@@ -1459,7 +1459,14 @@ function preencherTecnicoFromExecutora(execId) {
     wrap.style.display = 'none';
   }
 }
-function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+function fecharModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('open');
+  el.style.display = 'none';
+  // Force re-enable after a tick (in case something re-shows it)
+  setTimeout(() => { if (!el.classList.contains('open')) el.style.display = ''; }, 50);
+}
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function hoje() { return new Date().toLocaleDateString('pt-BR'); }
 function initials(nome) { return nome.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase(); }
