@@ -1326,9 +1326,45 @@ function salvarNoFirestore() {
   }, 2000);
 }
 
+let firestoreUnsubscribe = null;
+
+function subscreverFirestore() {
+  // Cancel previous subscription
+  if (firestoreUnsubscribe) firestoreUnsubscribe();
+  firestoreUnsubscribe = firestore.collection('empresas_dados').doc('shared')
+    .onSnapshot(doc => {
+      if (!doc.exists) return;
+      const data = doc.data();
+      function mergeA(remote, local) {
+        const map = {};
+        (remote||[]).forEach(x => { if(x.id) map[x.id]=x; });
+        (local||[]).forEach(x => { if(x.id) map[x.id]=x; });
+        return Object.values(map);
+      }
+      db.empresas     = mergeA(data.empresas,     db.empresas);
+      db.equipamentos = mergeA(data.equipamentos, db.equipamentos);
+      db.pmocs        = mergeA(data.pmocs,        db.pmocs);
+      db.tecnicos     = mergeA(data.tecnicos,     db.tecnicos);
+      db.manutencoes  = mergeA(data.manutencoes,  db.manutencoes);
+      db.atividades   = mergeA(data.atividades,   db.atividades);
+      localStorage.setItem('pmoc_v2', JSON.stringify(db));
+      const tryRender = () => {
+        if (document.getElementById('app')?.classList.contains('visible')) {
+          renderAll();
+          atualizarStatusSync('sincronizado');
+        } else { setTimeout(tryRender, 300); }
+      };
+      tryRender();
+    }, err => {
+      console.error('Firestore listener error:', err);
+      atualizarStatusSync('erro');
+    });
+}
+
 async function carregarDoFirestore() {
   try {
     atualizarStatusSync('sincronizando');
+    subscreverFirestore(); // Start real-time listener
     const doc = await firestore.collection('empresas_dados').doc('shared').get();
     if (doc.exists) {
       const data = doc.data();
@@ -1536,6 +1572,7 @@ function loginComGDrive() {
       localStorage.setItem('pmoc_user', JSON.stringify(usuario));
       entrarApp(usuario);
       carregarDoFirestore();
+      subscreverFirestore();
     })
     .catch(err => {
       if (btn) { btn.textContent = 'Entrar com Google Drive'; btn.disabled = false; }
@@ -2478,6 +2515,7 @@ function gerarPDF(empresa, equips, ano, num, exec, tec, soVisualizacao, execEmpO
   y += 16;
 
   doc.setTextColor(30,30,30); doc.setFont(undefined,'normal'); doc.setFontSize(8.5);
+  // justified text note: jsPDF doesn't support CSS justify, we simulate with consistent width
   const intro = [
     'O presente Plano de Manutenção, Operação e Controle — PMOC — foi elaborado em conformidade com as',
     'exigências legais e normativas aplicáveis aos sistemas de climatização de ambientes de uso público e coletivo,',
@@ -2525,7 +2563,7 @@ function gerarPDF(empresa, equips, ano, num, exec, tec, soVisualizacao, execEmpO
       y += 3;
     } else {
       doc.setFontSize(8);
-      doc.text(line, M, y); y += 5;
+      doc.text(line, M, y, { maxWidth: W - M*2 }); y += 5;
     }
   });
 
@@ -3093,9 +3131,10 @@ function abrirJanelaImpressao(codigos, logoSrc) {
   }
   .qr-wrap canvas { width:44mm !important; height:44mm !important; display:block; }
   .etiq-code {
-    font-size:7.5px; font-weight:700; letter-spacing:0.07em;
+    font-size:20px; font-weight:700; letter-spacing:0.05em;
     font-family:monospace; color:#111;
-    margin-top:3px; text-align:center;
+    margin-top:4px; text-align:center;
+    padding: 2px 0;
   }
   .etiq-line { width:48mm; height:0.5px; background:#ccc; margin:3px 0; }
   .logo-wrap {
