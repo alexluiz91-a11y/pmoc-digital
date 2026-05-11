@@ -540,9 +540,15 @@ select.field-input {
       </div>
     </div>
     <div class="topbar-right">
-      <div class="sync-badge" onclick="sincronizar()" title="Sincronizar com Google Drive">
-        <i class="ti ti-refresh" id="sync-icon"></i>
-        <span id="sync-label">Sync</span>
+      <div style="display:flex;gap:4px;align-items:center">
+        <div class="sync-badge" onclick="enviarDados()" title="Enviar dados para a nuvem" style="gap:3px">
+          <i class="ti ti-cloud-upload" id="sync-icon"></i>
+          <span id="sync-label" style="font-size:9px">Enviar</span>
+        </div>
+        <div class="sync-badge" onclick="receberDados()" title="Receber dados da nuvem" style="gap:3px">
+          <i class="ti ti-cloud-download" id="sync-icon2"></i>
+          <span id="sync-label2" style="font-size:9px">Receber</span>
+        </div>
       </div>
       <div class="user-chip" onclick="abrirPerfil()">
         <div class="user-avatar" id="user-avatar-initials">?</div>
@@ -1410,12 +1416,69 @@ async function carregarDoFirestore() {
   }
 }
 
+async function enviarDados() {
+  if (!currentUser || !currentUser.gdrive) { showToast('Entre com Google para sincronizar', ''); return; }
+  atualizarStatusSync('salvando');
+  try {
+    await firestore.collection('empresas_dados').doc('shared').set({
+      empresas:     db.empresas     || [],
+      equipamentos: db.equipamentos || [],
+      pmocs:        db.pmocs        || [],
+      tecnicos:     db.tecnicos     || [],
+      manutencoes:  db.manutencoes  || [],
+      atividades:   db.atividades   || [],
+      updatedAt:    firebase.firestore.FieldValue.serverTimestamp()
+    });
+    atualizarStatusSync('salvo');
+    showToast('✓ Dados enviados para a nuvem!', 'success');
+  } catch(e) {
+    atualizarStatusSync('erro');
+    showToast('Erro ao enviar: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
+async function receberDados() {
+  if (!currentUser || !currentUser.gdrive) { showToast('Entre com Google para sincronizar', ''); return; }
+  atualizarStatusSync2('recebendo');
+  try {
+    const doc = await firestore.collection('empresas_dados').doc('shared').get();
+    if (!doc.exists) { showToast('Nenhum dado na nuvem ainda', ''); atualizarStatusSync2('ok'); return; }
+    const data = doc.data();
+    // Full replace with remote data (user explicitly requested receive)
+    db.empresas     = data.empresas     || [];
+    db.equipamentos = data.equipamentos || [];
+    db.pmocs        = data.pmocs        || [];
+    db.tecnicos     = data.tecnicos     || [];
+    db.manutencoes  = data.manutencoes  || [];
+    db.atividades   = data.atividades   || [];
+    // Preserve current user in usuarios list
+    if (!db.usuarios) db.usuarios = [];
+    if (currentUser && !db.usuarios.find(x => x.id === currentUser.id)) {
+      db.usuarios.push(currentUser);
+    }
+    localStorage.setItem('pmoc_v2', JSON.stringify(db));
+    renderAll();
+    atualizarStatusSync2('ok');
+    showToast('✓ ' + db.empresas.length + ' empresas, ' + db.equipamentos.length + ' equip., ' + db.pmocs.length + ' PMOCs recebidos!', 'success');
+  } catch(e) {
+    atualizarStatusSync2('erro');
+    showToast('Erro ao receber: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
 async function sincronizar() {
-  if (!currentUser) { showToast('Faca login para sincronizar', ''); return; }
-  if (!currentUser.gdrive) { showToast('Entre com Google para sincronizar', ''); return; }
-  // Upload local data first, then confirm
-  await salvarNoFirestore();
-  showToast('Dados enviados ao servidor!', 'success');
+  await receberDados();
+}
+
+function atualizarStatusSync2(estado) {
+  const icon  = document.getElementById('sync-icon2');
+  const label = document.getElementById('sync-label2');
+  if (!icon || !label) return;
+  if (estado === 'recebendo') { icon.style.animation = 'spin 1s linear infinite'; label.textContent = '...'; label.style.color = '#fff'; }
+  else if (estado === 'ok')   { icon.style.animation = ''; label.textContent = 'Receber'; label.style.color = '#4caf50'; setTimeout(() => { label.style.color = ''; }, 3000); }
+  else if (estado === 'erro') { icon.style.animation = ''; label.textContent = 'Erro'; label.style.color = '#f44336'; setTimeout(() => { label.style.color = ''; label.textContent = 'Receber'; }, 4000); }
 }
 
 function atualizarStatusSync(estado) {
@@ -1424,12 +1487,12 @@ function atualizarStatusSync(estado) {
   const label = document.getElementById('sync-label');
   if (!icon || !label) return;
   const map = {
-    conectado:    { l:'Firebase', cor:'#4caf50', spin:false },
-    salvando:     { l:'Salvando...', cor:'#fff', spin:true  },
-    salvo:        { l:'Salvo',    cor:'#4caf50', spin:false },
-    sincronizando:{ l:'Sync...',  cor:'#fff', spin:true  },
-    sincronizado: { l:'Sync OK',  cor:'#4caf50', spin:false },
-    local:        { l:'Sync',     cor:'#fff', spin:false },
+    conectado:    { l:'Enviar', cor:'#4caf50', spin:false },
+    salvando:     { l:'...', cor:'#fff', spin:true  },
+    salvo:        { l:'✓',    cor:'#4caf50', spin:false },
+    sincronizando:{ l:'...',  cor:'#fff', spin:true  },
+    sincronizado: { l:'✓',  cor:'#4caf50', spin:false },
+    local:        { l:'Enviar',     cor:'#fff', spin:false },
     erro:         { l:'Erro',     cor:'#f44336', spin:false },
   };
   const e = map[estado] || map.local;
@@ -1437,7 +1500,7 @@ function atualizarStatusSync(estado) {
   label.style.color = e.cor;
   icon.style.animation = e.spin ? 'spin 1s linear infinite' : '';
   if (!e.spin) setTimeout(() => {
-    if (label.textContent === e.l) { label.textContent = 'Sync'; label.style.color = ''; }
+    if (label.textContent === e.l) { label.textContent = 'Enviar'; label.style.color = ''; }
   }, 4000);
 }
 
