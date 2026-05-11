@@ -3912,7 +3912,7 @@ function imprimirSelecionados() {
 // ===== SERVICE WORKER (PWA offline) =======================================
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('/pmoc-digital/sw.js', { scope: '/pmoc-digital/' })
       .then(reg => console.log('SW registered:', reg.scope))
       .catch(err => console.log('SW error:', err));
   });

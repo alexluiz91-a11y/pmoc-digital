@@ -2,20 +2,21 @@
   "name": "PMOC Digital",
   "short_name": "PMOC",
   "description": "Sistema de Plano de Manutenção, Operação e Controle",
-  "start_url": "/",
+  "start_url": "/pmoc-digital/",
+  "scope": "/pmoc-digital/",
   "display": "standalone",
   "background_color": "#0a4a36",
   "theme_color": "#0a4a36",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/pmoc-digital/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "/pmoc-digital/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
