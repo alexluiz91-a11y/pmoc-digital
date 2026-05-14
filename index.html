@@ -1334,8 +1334,13 @@ async function enviarDados(silencioso) {
       updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    // Equipamentos in chunks of 5 (photos can be large)
-    const equips = (db.equipamentos || []);
+    // Equipamentos in chunks of 5 — strip photos to stay under 1MB limit
+    const equips = (db.equipamentos || []).map(eq => {
+      const e = Object.assign({}, eq);
+      delete e.foto1; // photos stored locally only
+      delete e.foto2;
+      return e;
+    });
     const chunkSize = 5;
     const numChunks = Math.ceil(equips.length / chunkSize) || 1;
     for (let i = 0; i < numChunks; i++) {
@@ -2977,13 +2982,13 @@ function carregarFoto(n, input) {
     const img = new Image();
     img.onload = function() {
       const canvas = document.createElement('canvas');
-      const maxW = 800, maxH = 800;
+      const maxW = 600, maxH = 600;
       let w = img.width, h = img.height;
       if (w > maxW) { h = h * maxW / w; w = maxW; }
       if (h > maxH) { w = w * maxH / h; h = maxH; }
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      const data = canvas.toDataURL('image/jpeg', 0.75);
+      const data = canvas.toDataURL('image/jpeg', 0.5);
       fotosTemp[n] = data;
       document.getElementById('eq-foto' + n).value = data;
       const imgEl = document.getElementById('foto' + n + '-img');
@@ -3587,7 +3592,7 @@ function carregarFotoManut(n, input) {
       if(w>max){h=h*max/w;w=max;} if(h>max){w=w*max/h;h=max;}
       canvas.width=w; canvas.height=h;
       canvas.getContext('2d').drawImage(img,0,0,w,h);
-      const data = canvas.toDataURL('image/jpeg', 0.75);
+      const data = canvas.toDataURL('image/jpeg', 0.5);
       manutFotos[n] = data;
       const imgEl = document.getElementById('m-foto'+n+'-img');
       imgEl.src=data; imgEl.style.display='block';
