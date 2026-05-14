@@ -527,9 +527,6 @@ select.field-input {
   <p style="color:rgba(255,255,255,0.4);font-size:11px;margin-top:20px;text-align:center">
     Dados salvos localmente + sincronizados com Google Drive
   </p>
-  <p style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:12px;text-align:center;letter-spacing:0.02em">
-    Desenvolvido por Eng. Alex Luiz de Souza Leandro
-  </p>
 </div>
 
 <!-- MAIN APP -->
@@ -1288,9 +1285,9 @@ let currentUser = JSON.parse(localStorage.getItem('pmoc_user') || 'null');
 function saveDb() {
   localStorage.setItem('pmoc_v2', JSON.stringify(db));
   if (currentUser && currentUser.gdrive) {
-    // Auto-upload to Firestore 2s after any change
     salvarNoFirestore();
   } else if (currentUser && !currentUser.gdrive) {
+    // Local user — show sync reminder
     lembreteSincronizar();
   }
 }
@@ -1313,67 +1310,101 @@ function fecharLembrete() {
 let syncTimer = null;
 
 function salvarNoFirestore() {
+  // Debounced auto-save — calls enviarDados after 2s
   clearTimeout(syncTimer);
-  syncTimer = setTimeout(async () => {
-    try {
-      if (typeof firestore === 'undefined') return;
-      atualizarStatusSync('salvando');
-      await firestore.collection('empresas_dados').doc('shared').set({
-        empresas:     db.empresas     || [],
-        equipamentos: db.equipamentos || [],
-        pmocs:        db.pmocs        || [],
-        tecnicos:     db.tecnicos     || [],
-        manutencoes:  db.manutencoes  || [],
-        atividades:   db.atividades   || [],
-        updatedAt:    firebase.firestore.FieldValue.serverTimestamp()
-      });
-      atualizarStatusSync('salvo');
-    } catch(e) {
-      atualizarStatusSync('erro');
-      console.error('Firestore save error:', e);
-    }
-  }, 2000);
+  syncTimer = setTimeout(() => { enviarDados(true); }, 2000);
 }
 
-let firestoreUnsubscribe = null;
+async function enviarDados(silencioso) {
+  if (!currentUser || !currentUser.gdrive) {
+    if (!silencioso) showToast('Entre com Google para sincronizar', '');
+    return;
+  }
+  if (typeof firestore === 'undefined') return;
+  if (!silencioso) atualizarStatusSync('salvando');
+  try {
+    const col = firestore.collection('empresas_dados');
+    const batch = firestore.batch();
 
-function subscreverFirestore() {
-  // Cancel previous subscription
-  if (firestoreUnsubscribe) firestoreUnsubscribe();
-  firestoreUnsubscribe = firestore.collection('empresas_dados').doc('shared')
-    .onSnapshot(doc => {
-      if (!doc.exists) return;
-      const data = doc.data();
-      function mergeA(remote, local) {
-        const map = {};
-        (remote||[]).forEach(x => { if(x.id) map[x.id]=x; });
-        (local||[]).forEach(x => { if(x.id) map[x.id]=x; });
-        return Object.values(map);
-      }
-      db.empresas     = mergeA(data.empresas,     db.empresas);
-      db.equipamentos = mergeA(data.equipamentos, db.equipamentos);
-      db.pmocs        = mergeA(data.pmocs,        db.pmocs);
-      db.tecnicos     = mergeA(data.tecnicos,     db.tecnicos);
-      db.manutencoes  = mergeA(data.manutencoes,  db.manutencoes);
-      db.atividades   = mergeA(data.atividades,   db.atividades);
-      localStorage.setItem('pmoc_v2', JSON.stringify(db));
-      const tryRender = () => {
-        if (document.getElementById('app')?.classList.contains('visible')) {
-          renderAll();
-          atualizarStatusSync('sincronizado');
-        } else { setTimeout(tryRender, 300); }
-      };
-      tryRender();
-    }, err => {
-      console.error('Firestore listener error:', err);
-      atualizarStatusSync('erro');
+    // Save metadata + small collections
+    batch.set(col.doc('shared'), {
+      empresas:   db.empresas   || [],
+      tecnicos:   db.tecnicos   || [],
+      atividades: (db.atividades || []).slice(-50),
+      updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
     });
+
+    // Equipamentos in chunks of 5 (photos can be large)
+    const equips = (db.equipamentos || []);
+    const chunkSize = 5;
+    const numChunks = Math.ceil(equips.length / chunkSize) || 1;
+    for (let i = 0; i < numChunks; i++) {
+      batch.set(col.doc('equip_' + i), { items: equips.slice(i*chunkSize, (i+1)*chunkSize) });
+    }
+    batch.set(col.doc('equip_meta'), { total: equips.length, chunks: numChunks });
+
+    // PMOCs without artB64
+    const pmocs = (db.pmocs || []).map(p => { const x = Object.assign({}, p); delete x.artB64; return x; });
+    batch.set(col.doc('pmocs'), { items: pmocs });
+
+    // Manutencoes without photos
+    const manut = (db.manutencoes || []).map(m => { const x = Object.assign({}, m); delete x.foto1; delete x.foto2; return x; });
+    batch.set(col.doc('manutencoes'), { items: manut });
+
+    await batch.commit();
+    atualizarStatusSync('salvo');
+    if (!silencioso) showToast('✓ ' + equips.length + ' equip., ' + pmocs.length + ' PMOCs enviados!', 'success');
+  } catch(e) {
+    atualizarStatusSync('erro');
+    if (!silencioso) showToast('Erro ao enviar: ' + e.message, 'error');
+    console.error('enviarDados error:', e);
+  }
+}
+
+async function receberDados() {
+  if (!currentUser || !currentUser.gdrive) { showToast('Entre com Google para sincronizar', ''); return; }
+  atualizarStatusSync2('recebendo');
+  try {
+    const col = firestore.collection('empresas_dados');
+    const mainDoc = await col.doc('shared').get();
+    if (!mainDoc.exists) { showToast('Nenhum dado na nuvem ainda', ''); atualizarStatusSync2('ok'); return; }
+    const main = mainDoc.data();
+
+    // Load equipamentos chunks
+    const metaDoc = await col.doc('equip_meta').get();
+    let equipamentos = [];
+    if (metaDoc.exists) {
+      const meta = metaDoc.data();
+      const docs = await Promise.all(Array.from({length: meta.chunks}, (_, i) => col.doc('equip_' + i).get()));
+      docs.forEach(d => { if (d.exists) equipamentos = equipamentos.concat(d.data().items || []); });
+    }
+
+    const pmocsDoc = await col.doc('pmocs').get();
+    const manutDoc = await col.doc('manutencoes').get();
+
+    db.empresas     = main.empresas   || [];
+    db.tecnicos     = main.tecnicos   || [];
+    db.atividades   = main.atividades || [];
+    db.equipamentos = equipamentos;
+    db.pmocs        = pmocsDoc.exists ? (pmocsDoc.data().items || []) : [];
+    db.manutencoes  = manutDoc.exists ? (manutDoc.data().items || []) : [];
+    if (!db.usuarios) db.usuarios = [];
+    if (currentUser && !db.usuarios.find(x => x.id === currentUser.id)) db.usuarios.push(currentUser);
+
+    localStorage.setItem('pmoc_v2', JSON.stringify(db));
+    renderAll();
+    atualizarStatusSync2('ok');
+    showToast('✓ ' + db.empresas.length + ' emp., ' + db.equipamentos.length + ' equip., ' + db.pmocs.length + ' PMOCs!', 'success');
+  } catch(e) {
+    atualizarStatusSync2('erro');
+    showToast('Erro ao receber: ' + e.message, 'error');
+    console.error('receberDados error:', e);
+  }
 }
 
 async function carregarDoFirestore() {
   try {
     atualizarStatusSync('sincronizando');
-    subscreverFirestore(); // Start real-time listener
     const doc = await firestore.collection('empresas_dados').doc('shared').get();
     if (doc.exists) {
       const data = doc.data();
@@ -1419,69 +1450,15 @@ async function carregarDoFirestore() {
   }
 }
 
-async function enviarDados() {
-  if (!currentUser || !currentUser.gdrive) { showToast('Entre com Google para sincronizar', ''); return; }
-  atualizarStatusSync('salvando');
-  try {
-    await firestore.collection('empresas_dados').doc('shared').set({
-      empresas:     db.empresas     || [],
-      equipamentos: db.equipamentos || [],
-      pmocs:        db.pmocs        || [],
-      tecnicos:     db.tecnicos     || [],
-      manutencoes:  db.manutencoes  || [],
-      atividades:   db.atividades   || [],
-      updatedAt:    firebase.firestore.FieldValue.serverTimestamp()
-    });
-    atualizarStatusSync('salvo');
-    showToast('✓ Dados enviados para a nuvem!', 'success');
-  } catch(e) {
-    atualizarStatusSync('erro');
-    showToast('Erro ao enviar: ' + e.message, 'error');
-    console.error(e);
-  }
-}
-
-async function receberDados() {
-  if (!currentUser || !currentUser.gdrive) { showToast('Entre com Google para sincronizar', ''); return; }
-  atualizarStatusSync2('recebendo');
-  try {
-    const doc = await firestore.collection('empresas_dados').doc('shared').get();
-    if (!doc.exists) { showToast('Nenhum dado na nuvem ainda', ''); atualizarStatusSync2('ok'); return; }
-    const data = doc.data();
-    // Full replace with remote data (user explicitly requested receive)
-    db.empresas     = data.empresas     || [];
-    db.equipamentos = data.equipamentos || [];
-    db.pmocs        = data.pmocs        || [];
-    db.tecnicos     = data.tecnicos     || [];
-    db.manutencoes  = data.manutencoes  || [];
-    db.atividades   = data.atividades   || [];
-    // Preserve current user in usuarios list
-    if (!db.usuarios) db.usuarios = [];
-    if (currentUser && !db.usuarios.find(x => x.id === currentUser.id)) {
-      db.usuarios.push(currentUser);
-    }
-    localStorage.setItem('pmoc_v2', JSON.stringify(db));
-    renderAll();
-    atualizarStatusSync2('ok');
-    showToast('✓ ' + db.empresas.length + ' empresas, ' + db.equipamentos.length + ' equip., ' + db.pmocs.length + ' PMOCs recebidos!', 'success');
-  } catch(e) {
-    atualizarStatusSync2('erro');
-    showToast('Erro ao receber: ' + e.message, 'error');
-    console.error(e);
-  }
-}
-
-async function sincronizar() {
-  await receberDados();
-}
+async function sincronizar() { await receberDados(); }
 
 function atualizarStatusSync2(estado) {
   const icon  = document.getElementById('sync-icon2');
   const label = document.getElementById('sync-label2');
   if (!icon || !label) return;
-  if (estado === 'recebendo') { icon.style.animation = 'spin 1s linear infinite'; label.textContent = '...'; label.style.color = '#fff'; }
-  else if (estado === 'ok')   { icon.style.animation = ''; label.textContent = 'Receber'; label.style.color = '#4caf50'; setTimeout(() => { label.style.color = ''; }, 3000); }
-  else if (estado === 'erro') { icon.style.animation = ''; label.textContent = 'Erro'; label.style.color = '#f44336'; setTimeout(() => { label.style.color = ''; label.textContent = 'Receber'; }, 4000); }
+  if (estado === 'recebendo') { icon.style.animation = 'spin 1s linear infinite'; label.textContent = '...'; label.style.color='#fff'; }
+  else if (estado === 'ok')   { icon.style.animation = ''; label.textContent = '✓'; label.style.color='#4caf50'; setTimeout(()=>{label.textContent='Receber';label.style.color='';},3000); }
+  else { icon.style.animation = ''; label.textContent = 'Erro'; label.style.color='#f44336'; setTimeout(()=>{label.textContent='Receber';label.style.color='';},4000); }
 }
 
 function atualizarStatusSync(estado) {
@@ -1490,12 +1467,12 @@ function atualizarStatusSync(estado) {
   const label = document.getElementById('sync-label');
   if (!icon || !label) return;
   const map = {
-    conectado:    { l:'Enviar', cor:'#4caf50', spin:false },
-    salvando:     { l:'...', cor:'#fff', spin:true  },
-    salvo:        { l:'✓',    cor:'#4caf50', spin:false },
-    sincronizando:{ l:'...',  cor:'#fff', spin:true  },
-    sincronizado: { l:'✓',  cor:'#4caf50', spin:false },
-    local:        { l:'Enviar',     cor:'#fff', spin:false },
+    conectado:    { l:'Firebase', cor:'#4caf50', spin:false },
+    salvando:     { l:'Salvando...', cor:'#fff', spin:true  },
+    salvo:        { l:'Salvo',    cor:'#4caf50', spin:false },
+    sincronizando:{ l:'Sync...',  cor:'#fff', spin:true  },
+    sincronizado: { l:'Sync OK',  cor:'#4caf50', spin:false },
+    local:        { l:'Sync',     cor:'#fff', spin:false },
     erro:         { l:'Erro',     cor:'#f44336', spin:false },
   };
   const e = map[estado] || map.local;
@@ -1503,7 +1480,7 @@ function atualizarStatusSync(estado) {
   label.style.color = e.cor;
   icon.style.animation = e.spin ? 'spin 1s linear infinite' : '';
   if (!e.spin) setTimeout(() => {
-    if (label.textContent === e.l) { label.textContent = 'Enviar'; label.style.color = ''; }
+    if (label.textContent === e.l) { label.textContent = 'Sync'; label.style.color = ''; }
   }, 4000);
 }
 
@@ -1561,14 +1538,7 @@ function preencherTecnicoFromExecutora(execId) {
     wrap.style.display = 'none';
   }
 }
-function fecharModal(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.classList.remove('open');
-  el.style.display = 'none';
-  // Force re-enable after a tick (in case something re-shows it)
-  setTimeout(() => { if (!el.classList.contains('open')) el.style.display = ''; }, 50);
-}
+function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function hoje() { return new Date().toLocaleDateString('pt-BR'); }
 function initials(nome) { return nome.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase(); }
@@ -1624,7 +1594,20 @@ function fazerLogin() {
 }
 
 
-// (legacy Drive code removed)
+function saveDb() {
+  localStorage.setItem('pmoc_v2', JSON.stringify(db));
+  if (currentUser && currentUser.gdrive && gapiReady) {
+    clearTimeout(driveSaveTimer);
+    driveSaveTimer = setTimeout(salvarNoDrive, 3000);
+  }
+}
+
+window.addEventListener('load', () => {
+  setTimeout(initGoogleDrive, 1000);
+  setTimeout(initGoogleDrive, 3000);
+});
+
+function initGoogleDrive() { /* replaced by Firebase */ }
 
 function loginComGDrive() {
   const btn = document.querySelector('.gdrive-btn');
@@ -1638,7 +1621,6 @@ function loginComGDrive() {
       localStorage.setItem('pmoc_user', JSON.stringify(usuario));
       entrarApp(usuario);
       carregarDoFirestore();
-      subscreverFirestore();
     })
     .catch(err => {
       if (btn) { btn.textContent = 'Entrar com Google Drive'; btn.disabled = false; }
@@ -2581,7 +2563,6 @@ function gerarPDF(empresa, equips, ano, num, exec, tec, soVisualizacao, execEmpO
   y += 16;
 
   doc.setTextColor(30,30,30); doc.setFont(undefined,'normal'); doc.setFontSize(8.5);
-  // justified text note: jsPDF doesn't support CSS justify, we simulate with consistent width
   const intro = [
     'O presente Plano de Manutenção, Operação e Controle — PMOC — foi elaborado em conformidade com as',
     'exigências legais e normativas aplicáveis aos sistemas de climatização de ambientes de uso público e coletivo,',
@@ -2629,7 +2610,7 @@ function gerarPDF(empresa, equips, ano, num, exec, tec, soVisualizacao, execEmpO
       y += 3;
     } else {
       doc.setFontSize(8);
-      doc.text(line, M, y, { maxWidth: W - M*2 }); y += 5;
+      doc.text(line, M, y); y += 5;
     }
   });
 
@@ -2977,22 +2958,14 @@ document.head.appendChild(style);
 let fotosTemp = { 1: '', 2: '' };
 
 function carregarFotoEquip(n, input) {
-  // Save all critical form values before camera (Android may reset them)
-  const saved = {};
-  ['eq-empresa','eq-tipo','eq-marca','eq-modelo','eq-local','eq-btu','eq-gas',
-   'eq-serie','eq-tag','eq-patrimonio','eq-qrcode','eq-obs','eq-area',
-   'eq-pessoas-fixas','eq-pessoas-flut','eq-ano-inicio'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) saved[id] = el.value;
-  });
+  // Save empresa selection before camera opens (Android resets form on file input)
+  const empresaVal = document.getElementById('eq-empresa')?.value;
   carregarFoto(n, input);
-  // Restore after camera closes
+  // Restore after a tick
   setTimeout(() => {
-    Object.entries(saved).forEach(([id, val]) => {
-      const el = document.getElementById(id);
-      if (el && val && !el.value) el.value = val;
-    });
-  }, 200);
+    const el = document.getElementById('eq-empresa');
+    if (el && empresaVal && !el.value) el.value = empresaVal;
+  }, 100);
 }
 
 function carregarFoto(n, input) {
@@ -3205,10 +3178,9 @@ function abrirJanelaImpressao(codigos, logoSrc) {
   }
   .qr-wrap canvas { width:44mm !important; height:44mm !important; display:block; }
   .etiq-code {
-    font-size:20px; font-weight:700; letter-spacing:0.05em;
+    font-size:7.5px; font-weight:700; letter-spacing:0.07em;
     font-family:monospace; color:#111;
-    margin-top:4px; text-align:center;
-    padding: 2px 0;
+    margin-top:3px; text-align:center;
   }
   .etiq-line { width:48mm; height:0.5px; background:#ccc; margin:3px 0; }
   .logo-wrap {
@@ -3349,33 +3321,15 @@ function iniciarLeitura(video, status) {
 
 function codigoEscaneado(codigo) {
   pararCamera();
-  fecharModal('m-scanner');
-
-  if (window._scanTarget === 'manutencao') {
-    window._scanTarget = null;
-    const eq = db.equipamentos.find(e =>
-      (e.qrcode && e.qrcode === codigo) ||
-      (e.tag && e.tag === codigo) ||
-      (e.serie && e.serie === codigo)
-    );
-    if (eq) {
-      const empSel = document.getElementById('m-emp-sel');
-      if (empSel) { empSel.value = eq.empresaId; filtrarEquipManut(); }
-      setTimeout(() => {
-        const eqSel = document.getElementById('m-equip-sel');
-        if (eqSel) { eqSel.value = eq.id; mostrarInfoEquipManut(); }
-      }, 150);
-      showToast('Equipamento: ' + eq.tipo + (eq.tag ? ' [' + eq.tag + ']' : ''), 'success');
-    } else {
-      showToast('Equipamento nao encontrado para: ' + codigo, 'error');
-    }
-    return;
-  }
-
+  // Fill QR Code field (new dedicated field)
   const qrField = document.getElementById('eq-qrcode');
   if (qrField) qrField.value = codigo;
   else { const tagField = document.getElementById('eq-tag'); if (tagField) tagField.value = codigo; }
+  fecharModal('m-scanner');
   showToast('QR Code lido: ' + codigo, 'success');
+  // Update preview text
+  const pText = document.getElementById('qr-preview-text');
+  if (pText) pText.textContent = codigo;
 }
 
 function confirmarCodigoManual() {
@@ -3645,8 +3599,9 @@ function carregarFotoManut(n, input) {
 }
 
 function abrirScannerManut() {
-  window._scanTarget = 'manutencao';
+  // Reuse existing scanner but target equip select by QR code
   abrirScannerQR();
+  window._scanTarget = 'manutencao';
 }
 
 function salvarManutencao() {
@@ -3912,7 +3867,7 @@ function imprimirSelecionados() {
 // ===== SERVICE WORKER (PWA offline) =======================================
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/pmoc-digital/sw.js', { scope: '/pmoc-digital/' })
+    navigator.serviceWorker.register('/sw.js')
       .then(reg => console.log('SW registered:', reg.scope))
       .catch(err => console.log('SW error:', err));
   });
