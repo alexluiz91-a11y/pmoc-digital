@@ -1249,6 +1249,15 @@ select.field-input {
     </div>
     <div id="perfil-content"></div>
     <div class="divider-or" style="margin:16px 0"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <button class="btn btn-outline-green" onclick="exportarDados()" style="justify-content:center;font-size:12px">
+        <i class="ti ti-download"></i> Exportar
+      </button>
+      <label for="import-input" class="btn" style="justify-content:center;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px">
+        <i class="ti ti-upload"></i> Importar
+      </label>
+      <input type="file" id="import-input" accept=".json" style="display:none" onchange="importarDados(this)">
+    </div>
     <button class="btn btn-full btn-danger" onclick="logout()" style="justify-content:center"><i class="ti ti-logout"></i> Sair da conta</button>
   </div>
 </div>
@@ -1326,11 +1335,21 @@ async function enviarDados(silencioso) {
     const col = firestore.collection('empresas_dados');
     const batch = firestore.batch();
 
-    // Save metadata + small collections
-    batch.set(col.doc('shared'), {
-      empresas:   db.empresas   || [],
+    // Strip large base64 data before sending
+    const empresasLite = (db.empresas || []).map(e => {
+      const x = Object.assign({}, e);
+      delete x.logo; // logo stored locally only
+      return x;
+    });
+
+    // Save each empresa separately to avoid 1MB limit
+    empresasLite.forEach((emp, i) => {
+      batch.set(col.doc('emp_' + (emp.id || i)), emp);
+    });
+    batch.set(col.doc('emp_meta'), {
+      ids: empresasLite.map(e => e.id || ''),
       tecnicos:   db.tecnicos   || [],
-      atividades: (db.atividades || []).slice(-50),
+      atividades: (db.atividades || []).slice(-30),
       updatedAt:  firebase.firestore.FieldValue.serverTimestamp()
     });
 
@@ -1371,9 +1390,16 @@ async function receberDados() {
   atualizarStatusSync2('recebendo');
   try {
     const col = firestore.collection('empresas_dados');
-    const mainDoc = await col.doc('shared').get();
+    const mainDoc = await col.doc('emp_meta').get();
     if (!mainDoc.exists) { showToast('Nenhum dado na nuvem ainda', ''); atualizarStatusSync2('ok'); return; }
+    // Read emp_meta (new structure) or shared (old)
     const main = mainDoc.data();
+    // Load empresas individually
+    let empresas = [];
+    if (main.ids) {
+      const empDocs = await Promise.all(main.ids.map(id => col.doc('emp_' + id).get()));
+      empresas = empDocs.filter(d => d.exists).map(d => d.data());
+    }
 
     // Load equipamentos chunks
     const metaDoc = await col.doc('equip_meta').get();
@@ -1387,7 +1413,7 @@ async function receberDados() {
     const pmocsDoc = await col.doc('pmocs').get();
     const manutDoc = await col.doc('manutencoes').get();
 
-    db.empresas     = main.empresas   || [];
+    db.empresas     = empresas.length > 0 ? empresas : (main.empresas || []);
     db.tecnicos     = main.tecnicos   || [];
     db.atividades   = main.atividades || [];
     db.equipamentos = equipamentos;
@@ -3873,6 +3899,56 @@ if ('serviceWorker' in navigator) {
       .then(reg => console.log('SW registered:', reg.scope))
       .catch(err => console.log('SW error:', err));
   });
+}
+
+// ===== EXPORT / IMPORT =====================================================
+function exportarDados() {
+  const dados = JSON.stringify(db, null, 2);
+  const blob = new Blob([dados], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pmoc_backup_' + hoje().replace(/\//g,'-') + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Backup exportado! ' + db.equipamentos.length + ' equipamentos salvos.', 'success');
+}
+
+function importarDados(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const dados = JSON.parse(e.target.result);
+      if (!dados.empresas || !dados.equipamentos) {
+        showToast('Arquivo inválido', 'error'); return;
+      }
+      // Merge imported data with current
+      function mergeArr(a, b) {
+        const map = {};
+        (a||[]).forEach(x => { if(x.id) map[x.id]=x; });
+        (b||[]).forEach(x => { if(x.id) map[x.id]=x; });
+        return Object.values(map);
+      }
+      db.empresas     = mergeArr(db.empresas, dados.empresas);
+      db.equipamentos = mergeArr(db.equipamentos, dados.equipamentos);
+      db.pmocs        = mergeArr(db.pmocs, dados.pmocs);
+      db.tecnicos     = mergeArr(db.tecnicos, dados.tecnicos);
+      db.manutencoes  = mergeArr(db.manutencoes, dados.manutencoes);
+      db.atividades   = mergeArr(db.atividades, dados.atividades);
+      saveDb();
+      renderAll();
+      fecharModal('m-perfil');
+      showToast('✓ ' + db.equipamentos.length + ' equipamentos importados!', 'success');
+    } catch(err) {
+      showToast('Erro ao importar: ' + err.message, 'error');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
 }
 
 // ===== INIT =====
