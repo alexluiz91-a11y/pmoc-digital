@@ -1285,7 +1285,7 @@ let currentUser = JSON.parse(localStorage.getItem('pmoc_user') || 'null');
 function saveDb() {
   localStorage.setItem('pmoc_v2', JSON.stringify(db));
   if (currentUser && currentUser.gdrive) {
-    salvarNoFirestore();
+    // auto-save disabled
   } else if (currentUser && !currentUser.gdrive) {
     // Local user — show sync reminder
     lembreteSincronizar();
@@ -1430,8 +1430,7 @@ async function carregarDoFirestore() {
       db.manutencoes  = mergeArr(data.manutencoes,  db.manutencoes);
       db.atividades   = mergeArr(data.atividades,   db.atividades);
       localStorage.setItem('pmoc_v2', JSON.stringify(db));
-      // Upload merged result back to Firestore
-      salvarNoFirestore();
+      // Don't auto-upload — user controls sync with Enviar button
       // Wait for app to be fully visible before rendering
       const tryRender = () => {
         if (document.getElementById('app')?.classList.contains('visible')) {
@@ -1444,9 +1443,7 @@ async function carregarDoFirestore() {
       };
       tryRender();
     } else {
-      // First use — upload local data
-      await salvarNoFirestore();
-      showToast('Banco iniciado no Firebase!', 'success');
+      showToast('Primeiro acesso. Use Enviar para subir seus dados.', 'success');
     }
   } catch(e) {
     atualizarStatusSync('erro');
