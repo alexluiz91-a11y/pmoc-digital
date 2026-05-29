@@ -801,8 +801,14 @@ select.field-input {
         </div>
       </div>
 
-      <button class="btn btn-full btn-green" onclick="imprimirQRCodes()" style="justify-content:center;margin-bottom:10px">
-        <i class="ti ti-printer"></i> Gerar e imprimir etiquetas A4
+      <button class="btn btn-full btn-green" onclick="gerarQRequipamentos()" style="justify-content:center;margin-bottom:10px">
+        <i class="ti ti-qrcode"></i> Gerar QR dos equipamentos (consulta cliente)
+      </button>
+      <p style="font-size:11px;color:var(--text-3);text-align:center;margin-bottom:14px;line-height:1.4">
+        Cada QR Code leva o cliente a uma página com os dados e o histórico de manutenção do equipamento.
+      </p>
+      <button class="btn btn-full" onclick="imprimirQRCodes()" style="justify-content:center;margin-bottom:10px">
+        <i class="ti ti-printer"></i> Gerar etiquetas em branco (códigos avulsos)
       </button>
 
       <p class="sec-title">Pré-visualização da etiqueta</p>
@@ -3155,6 +3161,95 @@ function imprimirQRCodes() {
   }
   const codigos = Array.from({length: qrQty}, () => gerarCodigoAleatorio());
   abrirJanelaImpressao(codigos, logoDataUrl);
+}
+
+// Base URL of the public viewer page
+const VIEWER_BASE = 'https://alexluiz91-a11y.github.io/pmoc-digital/v.html?e=';
+
+// Encurta uma URL usando is.gd (gratuito, sem cadastro)
+async function encurtarURL(urlLonga) {
+  try {
+    const resp = await fetch('https://is.gd/create.php?format=simple&url=' + encodeURIComponent(urlLonga));
+    if (resp.ok) {
+      const short = await resp.text();
+      if (short && short.startsWith('http')) return short.trim();
+    }
+  } catch(e) { console.warn('Encurtador falhou:', e); }
+  return urlLonga; // fallback: usa link longo
+}
+
+// Gera QR Codes dos equipamentos cadastrados (com link para consulta pública)
+async function gerarQRequipamentos() {
+  const empId = document.getElementById('qr-empresa-sel')?.value;
+  let equips = db.equipamentos || [];
+  if (empId) equips = equips.filter(e => e.empresaId === empId);
+
+  if (equips.length === 0) {
+    showToast('Nenhum equipamento cadastrado' + (empId ? ' nesta empresa' : ''), 'error');
+    return;
+  }
+
+  showToast('Gerando links curtos para ' + equips.length + ' equipamentos...', '');
+
+  // Generate short links for each equipment
+  const itens = [];
+  for (const eq of equips) {
+    const urlLonga = VIEWER_BASE + eq.id;
+    const urlCurta = await encurtarURL(urlLonga);
+    const nomeCurto = eq.tipo + (eq.tag ? ' ' + eq.tag : '');
+    itens.push({ url: urlCurta, label: nomeCurto, tag: eq.tag || eq.id });
+  }
+
+  abrirJanelaImpressaoEquip(itens, logoDataUrl);
+}
+
+function abrirJanelaImpressaoEquip(itens, logoSrc) {
+  const win = window.open('', '_blank', 'width=960,height=750');
+  const logoB64 = logoSrc || '';
+  const etiquetas = itens.map(it => {
+    const sid = 'qr-' + it.tag.replace(/[^a-zA-Z0-9]/g,'-');
+    const logoHtml = logoB64
+      ? '<div class="logo-wrap"><img src="' + logoB64 + '"></div>'
+      : '<div class="logo-wrap"><span class="no-logo">PMOC Digital</span></div>';
+    return '<div class="etiqueta">' +
+      '<div class="qr-wrap" id="' + sid + '"></div>' +
+      '<div class="etiq-code">' + it.label + '</div>' +
+      '<div class="etiq-line"></div>' +
+      logoHtml + '</div>';
+  }).join('');
+
+  const qrData = itens.map(it => ({ id: 'qr-' + it.tag.replace(/[^a-zA-Z0-9]/g,'-'), url: it.url }));
+
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QR Codes dos Equipamentos</title>' +
+    '<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></scr' + 'ipt>' +
+    '<style>' +
+    '* { box-sizing:border-box; margin:0; padding:0; }' +
+    'body { background:#f0f0f0; font-family:Arial,sans-serif; }' +
+    '.toolbar { background:#0a4a36; color:white; padding:10px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }' +
+    '.toolbar h2 { font-size:15px; } .toolbar p { font-size:11px; opacity:0.75; }' +
+    '.toolbar button { background:white; color:#0a4a36; border:none; padding:8px 22px; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer; }' +
+    '.page { width:210mm; min-height:297mm; background:white; margin:20px auto; padding:8mm; display:grid; grid-template-columns:repeat(3,1fr); gap:4mm; align-content:start; box-shadow:0 2px 16px rgba(0,0,0,0.18); }' +
+    '.etiqueta { display:flex; flex-direction:column; align-items:center; background:white; padding:4mm 3mm; border:0.5px solid #ccc; border-radius:3px; }' +
+    '.qr-wrap { width:44mm; height:44mm; display:flex; align-items:center; justify-content:center; }' +
+    '.etiq-code { font-size:11px; font-weight:700; font-family:Arial; color:#111; margin-top:4px; text-align:center; padding:2px; }' +
+    '.etiq-line { width:100%; border-top:1px dashed #ccc; margin:4px 0; }' +
+    '.logo-wrap { width:44mm; height:20mm; display:flex; align-items:center; justify-content:center; overflow:hidden; }' +
+    '.logo-wrap img { max-width:100%; max-height:100%; object-fit:contain; }' +
+    '.no-logo { font-size:10px; color:#aaa; }' +
+    '@media print { .toolbar { display:none; } body { background:white; } .page { margin:0; box-shadow:none; } }' +
+    '</style></head><body>' +
+    '<div class="toolbar"><div><h2>QR Codes dos Equipamentos</h2><p>' + itens.length + ' etiquetas · Cliente escaneia e vê o histórico</p></div>' +
+    '<button onclick="window.print()">Imprimir</button></div>' +
+    '<div class="page">' + etiquetas + '</div>' +
+    '<scr' + 'ipt>window.onload = function() {' +
+    'var data = ' + JSON.stringify(qrData) + ';' +
+    'data.forEach(function(d) {' +
+    'var el = document.getElementById(d.id);' +
+    'if (el && typeof QRCode !== "undefined") {' +
+    'new QRCode(el, { text:d.url, width:167, height:167, colorDark:"#000000", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.M });' +
+    'var cvs = el.querySelector("canvas"); if (cvs) { cvs.style.width="44mm"; cvs.style.height="44mm"; }' +
+    '}});};</scr' + 'ipt></body></html>');
+  win.document.close();
 }
 
 function abrirJanelaImpressao(codigos, logoSrc) {
