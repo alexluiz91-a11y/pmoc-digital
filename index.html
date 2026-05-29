@@ -3164,13 +3164,16 @@ function imprimirQRCodes() {
   if (!logoDataUrl) {
     if (!confirm('Nenhuma logomarca selecionada. Gerar etiquetas sem logo?')) return;
   }
-  // Generate blank labels: label = random code, QR = full viewer URL with that code
   const prefix = (document.getElementById('qr-prefix')?.value || 'EQ').toUpperCase();
+  // Get empresa tel if selected
+  const empId = qrEmpresaSel;
+  const emp = empId ? db.empresas.find(e => e.id === empId) : null;
+  const tel = emp?.tel || '';
   const items = Array.from({length: qrQty}, () => {
     const num = Math.floor(Math.random() * 9000000) + 1000000;
     const label = prefix + '-' + num;
     const url = gerarURLequip(label);
-    return { url, label };
+    return { url, label, tel };
   });
   abrirJanelaImpressao(items, logoDataUrl);
 }
@@ -3236,7 +3239,7 @@ function abrirJanelaImpressaoEquip(itens, logoSrc) {
       '<div class="qr-wrap" id="' + sid + '"></div>' +
       '<div class="etiq-code">' + it.label + '</div>' +
       '<div class="etiq-line"></div>' +
-      logoHtml + '</div>';
+      logoHtml + (it.tel ? '<div class="etiq-tel">' + it.tel + '</div>' : '') + '</div>';
   }).join('');
 
   const qrData = itens.map(it => ({ id: 'qr-' + it.tag.replace(/[^a-zA-Z0-9]/g,'-'), url: it.url }));
@@ -3250,13 +3253,13 @@ function abrirJanelaImpressaoEquip(itens, logoSrc) {
     '.toolbar h2 { font-size:15px; } .toolbar p { font-size:11px; opacity:0.75; }' +
     '.toolbar button { background:white; color:#0a4a36; border:none; padding:8px 22px; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer; }' +
     '.page { width:210mm; min-height:297mm; background:white; margin:20px auto; padding:8mm; display:grid; grid-template-columns:repeat(3,1fr); gap:4mm; align-content:start; box-shadow:0 2px 16px rgba(0,0,0,0.18); }' +
-    '.etiqueta { display:flex; flex-direction:column; align-items:center; background:white; padding:4mm 3mm; border:0.5px solid #ccc; border-radius:3px; }' +
-    '.qr-wrap { width:44mm; height:44mm; display:flex; align-items:center; justify-content:center; }' +
-    '.etiq-code { font-size:11px; font-weight:700; font-family:Arial; color:#111; margin-top:4px; text-align:center; padding:2px; }' +
-    '.etiq-line { width:100%; border-top:1px dashed #ccc; margin:4px 0; }' +
-    '.logo-wrap { width:44mm; height:20mm; display:flex; align-items:center; justify-content:center; overflow:hidden; }' +
+    '.etiqueta { display:flex; flex-direction:column; align-items:center; background:white; padding:5mm 3mm 6mm; border:0.5px solid #ccc; border-radius:3px; }' +
+    '.qr-wrap { width:36mm; height:36mm; display:flex; align-items:center; justify-content:center; }' +
+    '.etiq-code { font-size:14px; font-weight:700; font-family:monospace; color:#111; margin-top:5px; margin-bottom:2px; text-align:center; letter-spacing:0.05em; }' +
+    '.etiq-line { width:100%; border-top:1px dashed #ccc; margin:5px 0; }' +
+    '.logo-wrap { width:40mm; height:28mm; display:flex; align-items:center; justify-content:center; overflow:hidden; }' +
     '.logo-wrap img { max-width:100%; max-height:100%; object-fit:contain; }' +
-    '.no-logo { font-size:10px; color:#aaa; }' +
+    '.no-logo { font-size:10px; color:#aaa; }' + '.etiq-tel { font-size:11px; color:#333; text-align:center; margin-top:5px; font-weight:500; }' +
     '@media print { .toolbar { display:none; } body { background:white; } .page { margin:0; box-shadow:none; } }' +
     '</style></head><body>' +
     '<div class="toolbar"><div><h2>QR Codes dos Equipamentos</h2><p>' + itens.length + ' etiquetas · Cliente escaneia e vê o histórico</p></div>' +
@@ -3294,7 +3297,7 @@ function abrirJanelaImpressao(codigos, logoSrc) {
     'var el=document.getElementById("qr-"+it.label.replace(/[^a-zA-Z0-9]/g,"-"));' +
     'if(el&&typeof QRCode!=="undefined"){' +
     'new QRCode(el,{text:it.url,width:167,height:167,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});' +
-    'var cvs=el.querySelector("canvas");if(cvs){cvs.style.width="44mm";cvs.style.height="44mm";}}});};';
+    'var cvs=el.querySelector("canvas");if(cvs){cvs.style.width="36mm";cvs.style.height="36mm";}}});};';
 
   const html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
     '<title>Etiquetas QR Code — PMOC Digital</title>' +
