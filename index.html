@@ -1566,7 +1566,13 @@ function preencherTecnicoFromExecutora(execId) {
     wrap.style.display = 'none';
   }
 }
-function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+function fecharModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('open');
+  el.style.display = 'none';
+  setTimeout(() => { if (!el.classList.contains('open')) el.style.display = ''; }, 100);
+}
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function hoje() { return new Date().toLocaleDateString('pt-BR'); }
 function initials(nome) { return nome.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase(); }
@@ -1882,16 +1888,15 @@ function salvarEmpresa() {
   else db.empresas.push(obj);
   saveDb();
   addAtividade(`Empresa "${nome}" ${isEdit ? 'atualizada' : 'cadastrada'}`);
-  fecharModal('m-empresa');
   resetForm(['emp-id','emp-nome','emp-cnpj','emp-cep','emp-rua','emp-numero','emp-bairro','emp-cidade','emp-uf','emp-comp','emp-tel','emp-email','emp-contato','emp-obs','emp-resp','emp-crea','emp-formacao']);
   setTipoEmpresa('cliente');
   removerLogoEmpresaModal();
   document.getElementById('m-emp-title').textContent = 'Cadastrar empresa';
-  showToast((isEdit ? 'Empresa atualizada!' : 'Empresa cadastrada!') + ' ✓', 'success');
-  // Immediate list refresh
   renderEmpresas();
   preencherSelects();
   renderAll();
+  fecharModal('m-empresa');
+  showToast((isEdit ? 'Empresa atualizada!' : 'Empresa cadastrada!') + ' ✓', 'success');
 }
 
 function editarEmpresa(id) {
@@ -1969,7 +1974,6 @@ function salvarEquip() {
   else db.equipamentos.push(obj);
   saveDb();
   addAtividade(`Equipamento "${tipo}" cadastrado`);
-  fecharModal('m-equip');
   document.getElementById('eq-id').value = '';
   const _p = document.getElementById('eq-patrimonio'); if (_p) _p.value = '';
   ['eq-area','eq-pessoas-fixas','eq-pessoas-flut'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
@@ -1978,11 +1982,11 @@ function salvarEquip() {
   selecionarMes(0);
   const anoEl = document.getElementById('eq-ano-inicio'); if(anoEl) anoEl.value = new Date().getFullYear();
   removerFoto(1); removerFoto(2);
-  showToast((isEdit ? 'Equipamento atualizado!' : 'Equipamento cadastrado!') + ' ✓', 'success');
-  // Immediate list refresh
   preencherSelects();
   renderEquip();
   renderAll();
+  fecharModal('m-equip');
+  showToast((isEdit ? 'Equipamento atualizado!' : 'Equipamento cadastrado!') + ' ✓', 'success');
 }
 
 function excluirEquip(id) {
@@ -3537,10 +3541,10 @@ function salvarTecnico() {
   if (isEdit) { const i = db.tecnicos.findIndex(t => t.id === id); db.tecnicos[i] = obj; }
   else db.tecnicos.push(obj);
   saveDb();
-  fecharModal('m-tec-form');
   ['tec-id','tec-nome','tec-crea','tec-esp','tec-tel','tec-email','tec-obs'].forEach(i => { const el=document.getElementById(i); if(el) el.value=''; });
   document.getElementById('tec-modal-title').textContent = 'Cadastrar técnico';
-  showToast('Técnico salvo!', 'success');
+  fecharModal('m-tec-form');
+  showToast((isEdit ? 'Técnico atualizado!' : 'Técnico cadastrado!') + ' ✓', 'success');
   renderTecnicos(); popularSelectsTecnicos();
 }
 
