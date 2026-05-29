@@ -3185,8 +3185,17 @@ async function gerarQRequipamentos() {
   if (empId) equips = equips.filter(e => e.empresaId === empId);
 
   if (equips.length === 0) {
-    showToast('Nenhum equipamento cadastrado' + (empId ? ' nesta empresa' : ''), 'error');
-    return;
+    // Try loading from Firestore first
+    if (currentUser && currentUser.gdrive) {
+      showToast('Buscando equipamentos na nuvem...', '');
+      await receberDados();
+      equips = db.equipamentos || [];
+      if (empId) equips = equips.filter(e => e.empresaId === empId);
+    }
+    if (equips.length === 0) {
+      showToast('Nenhum equipamento cadastrado' + (empId ? ' nesta empresa. Verifique se clicou em Receber.' : '. Cadastre equipamentos primeiro.'), 'error');
+      return;
+    }
   }
 
   showToast('Gerando links curtos para ' + equips.length + ' equipamentos...', '');
