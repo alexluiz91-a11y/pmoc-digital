@@ -801,14 +801,8 @@ select.field-input {
         </div>
       </div>
 
-      <button class="btn btn-full btn-green" onclick="gerarQRequipamentos()" style="justify-content:center;margin-bottom:10px">
-        <i class="ti ti-qrcode"></i> Gerar QR dos equipamentos (consulta cliente)
-      </button>
-      <p style="font-size:11px;color:var(--text-3);text-align:center;margin-bottom:14px;line-height:1.4">
-        Cada QR Code leva o cliente a uma página com os dados e o histórico de manutenção do equipamento.
-      </p>
-      <button class="btn btn-full" onclick="imprimirQRCodes()" style="justify-content:center;margin-bottom:10px">
-        <i class="ti ti-printer"></i> Gerar etiquetas em branco (códigos avulsos)
+      <button class="btn btn-full btn-green" onclick="imprimirQRCodes()" style="justify-content:center;margin-bottom:10px">
+        <i class="ti ti-printer"></i> Gerar e imprimir etiquetas
       </button>
 
       <p class="sec-title">Pré-visualização da etiqueta</p>
@@ -3166,12 +3160,15 @@ function imprimirQRCodes() {
   if (!logoDataUrl) {
     if (!confirm('Nenhuma logomarca selecionada. Gerar etiquetas sem logo?')) return;
   }
-  // Each QR code text = full viewer URL; label shows the short code only
-  const codigos = Array.from({length: qrQty}, () => {
-    const id = gerarCodigoAleatorio();
-    return { url: gerarURLequip(id), label: id };
+  // Generate blank labels: label = random code, QR = full viewer URL with that code
+  const prefix = (document.getElementById('qr-prefix')?.value || 'EQ').toUpperCase();
+  const items = Array.from({length: qrQty}, () => {
+    const num = Math.floor(Math.random() * 9000000) + 1000000;
+    const label = prefix + '-' + num;
+    const url = gerarURLequip(label);
+    return { url, label };
   });
-  abrirJanelaImpressao(codigos, logoDataUrl);
+  abrirJanelaImpressao(items, logoDataUrl);
 }
 
 // Base URL of the public viewer page
