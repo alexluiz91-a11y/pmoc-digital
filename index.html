@@ -3150,16 +3150,27 @@ function ajustarQty(delta) {
 }
 
 function gerarCodigoAleatorio() {
-  const prefix = (document.getElementById('qr-prefix')?.value || 'EQ').toUpperCase();
-  const num = Math.floor(Math.random() * 9000000) + 1000000;
-  return prefix + '-' + num;
+  // Generate a short random ID (6 chars alphanumeric)
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let id = '';
+  for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  return id;
+}
+
+function gerarURLequip(codigo) {
+  // The QR Code text = the public viewer URL with the random code
+  return 'https://alexluiz91-a11y.github.io/pmoc-digital/v.html?c=' + codigo;
 }
 
 function imprimirQRCodes() {
   if (!logoDataUrl) {
     if (!confirm('Nenhuma logomarca selecionada. Gerar etiquetas sem logo?')) return;
   }
-  const codigos = Array.from({length: qrQty}, () => gerarCodigoAleatorio());
+  // Each QR code text = full viewer URL; label shows the short code only
+  const codigos = Array.from({length: qrQty}, () => {
+    const id = gerarCodigoAleatorio();
+    return { url: gerarURLequip(id), label: id };
+  });
   abrirJanelaImpressao(codigos, logoDataUrl);
 }
 
@@ -3264,6 +3275,8 @@ function abrirJanelaImpressaoEquip(itens, logoSrc) {
 function abrirJanelaImpressao(codigos, logoSrc) {
   const win = window.open('', '_blank', 'width=960,height=750');
   const logoB64 = logoSrc || '';
+  // Normalize: accept both plain strings and {url, label} objects
+  const items = codigos.map(c => typeof c === 'string' ? { url: c, label: c } : c);
 
   win.document.write(`<!DOCTYPE html>
 <html>
@@ -3343,28 +3356,23 @@ function abrirJanelaImpressao(codigos, logoSrc) {
   <button onclick="window.print()">🖨 Imprimir</button>
 </div>
 <div class="page">
-${codigos.map(c => {
-  const sid = 'qr-' + c.replace(/[^a-zA-Z0-9]/g,'-');
-  const logoHtml = logoB64
-    ? `<div class="logo-wrap"><img src="${logoB64}"></div>`
-    : `<div class="logo-wrap"><span class="no-logo">PMOC Digital</span></div>`;
-  return `<div class="etiqueta">
-  <div class="qr-wrap" id="${sid}"></div>
-  <div class="etiq-code">${c}</div>
-  <div class="etiq-line"></div>
-  ${logoHtml}
-</div>`;
-}).join('')}
+${items.map(it => {
+    const sid = 'qr-' + it.label.replace(/[^a-zA-Z0-9]/g,'-');
+    const logoHtml = logoB64
+      ? '<div class="logo-wrap"><img src="' + logoB64 + '"></div>'
+      : '<div class="logo-wrap"><span class="no-logo">PMOC Digital</span></div>';
+    return '<div class="etiqueta"><div class="qr-wrap" id="' + sid + '"></div><div class="etiq-code">' + it.label + '</div><div class="etiq-line"></div>' + logoHtml + '</div>';
+  })).join('')}
 </div>
 <script>
 window.onload = function() {
-  ${JSON.stringify(codigos)}.forEach(function(c) {
-    var el = document.getElementById('qr-' + c.replace(/[^a-zA-Z0-9]/g,'-'));
+  ${JSON.stringify(items)}.forEach(function(it) {
+    var el = document.getElementById('qr-' + it.label.replace(/[^a-zA-Z0-9]/g,'-'));
     if (el && typeof QRCode !== 'undefined') {
       new QRCode(el, {
-        text: c, width: 167, height: 167,
+        text: it.url, width: 167, height: 167,
         colorDark:'#000000', colorLight:'#ffffff',
-        correctLevel: QRCode.CorrectLevel.H
+        correctLevel: QRCode.CorrectLevel.M
       });
       var cvs = el.querySelector('canvas');
       if (cvs) { cvs.style.width='44mm'; cvs.style.height='44mm'; }
@@ -3453,15 +3461,46 @@ function iniciarLeitura(video, status) {
 
 function codigoEscaneado(codigo) {
   pararCamera();
-  // Fill QR Code field (new dedicated field)
-  const qrField = document.getElementById('eq-qrcode');
-  if (qrField) qrField.value = codigo;
-  else { const tagField = document.getElementById('eq-tag'); if (tagField) tagField.value = codigo; }
   fecharModal('m-scanner');
-  showToast('QR Code lido: ' + codigo, 'success');
-  // Update preview text
+
+  // If scanned a full URL, extract the short code
+  let codeVal = codigo;
+  try {
+    if (codigo.startsWith('http')) {
+      const u = new URL(codigo);
+      codeVal = u.searchParams.get('c') || u.searchParams.get('e') || codigo;
+    }
+  } catch(e) {}
+
+  // Manutenção scanner: lookup equipment by code
+  if (window._scanTarget === 'manutencao') {
+    window._scanTarget = null;
+    const eq = db.equipamentos.find(e =>
+      (e.qrcode && (e.qrcode === codeVal || e.qrcode === codigo)) ||
+      (e.tag && e.tag === codeVal) ||
+      (e.serie && e.serie === codeVal)
+    );
+    if (eq) {
+      const empSel = document.getElementById('m-emp-sel');
+      if (empSel) { empSel.value = eq.empresaId; filtrarEquipManut(); }
+      setTimeout(() => {
+        const eqSel = document.getElementById('m-equip-sel');
+        if (eqSel) { eqSel.value = eq.id; mostrarInfoEquipManut(); }
+      }, 150);
+      showToast('Equipamento: ' + eq.tipo + (eq.tag ? ' [' + eq.tag + ']' : ''), 'success');
+    } else {
+      showToast('Equipamento nao encontrado: ' + codeVal, 'error');
+    }
+    return;
+  }
+
+  // Default: fill QR Code field in equipment form
+  const qrField = document.getElementById('eq-qrcode');
+  if (qrField) qrField.value = codeVal;
+  else { const tagField = document.getElementById('eq-tag'); if (tagField) tagField.value = codeVal; }
+  showToast('QR Code lido: ' + codeVal, 'success');
   const pText = document.getElementById('qr-preview-text');
-  if (pText) pText.textContent = codigo;
+  if (pText) pText.textContent = codeVal;
 }
 
 function confirmarCodigoManual() {

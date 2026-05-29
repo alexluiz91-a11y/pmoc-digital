@@ -2,212 +2,222 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#0a4a36">
 <title>PMOC Digital — Consulta de Equipamento</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
-  :root {
-    --verde: #0a4a36; --verde-mid: #1a7a55; --verde-bg: #e6f5f0;
-    --bg: #f4f6f5; --text: #1a1a1a; --text-2: #555; --text-3: #999;
-    --border: #e5e9e7; --red: #b83232; --amber: #c07a1a;
-    --radius: 14px; --radius-sm: 10px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.4; padding-bottom: 30px; }
-  .header { background: var(--verde); color: white; padding: 16px 18px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; }
-  .header .logo { width: 40px; height: 40px; background: rgba(255,255,255,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
-  .header h1 { font-size: 16px; font-weight: 700; }
-  .header p { font-size: 11px; opacity: 0.8; }
-  .container { max-width: 600px; margin: 0 auto; padding: 16px; }
-  .card { background: white; border-radius: var(--radius); padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-  .card-title { font-size: 12px; font-weight: 700; color: var(--verde); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-  .eq-name { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
-  .eq-sub { font-size: 13px; color: var(--text-2); }
-  .badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 12px; background: var(--verde-bg); color: var(--verde); font-weight: 600; margin-top: 8px; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .info { padding: 8px 10px; background: var(--bg); border-radius: 8px; }
-  .info .lbl { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; }
-  .info .val { font-size: 14px; font-weight: 600; }
-  .manut-item { border-left: 3px solid var(--verde); padding: 10px 12px; background: var(--bg); border-radius: 8px; margin-bottom: 10px; }
-  .manut-item .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-  .manut-item .data { font-size: 13px; font-weight: 700; }
-  .manut-item .tec { font-size: 12px; color: var(--text-2); }
-  .status-chip { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
-  .chip-ok { background: var(--verde-bg); color: var(--verde); }
-  .chip-warn { background: #faeeda; color: var(--amber); }
-  .summary { display: flex; gap: 8px; margin-top: 8px; }
-  .sum { flex: 1; text-align: center; padding: 6px; border-radius: 8px; }
-  .sum .n { font-size: 16px; font-weight: 700; }
-  .sum .l { font-size: 9px; text-transform: uppercase; }
-  .empty { text-align: center; padding: 30px; color: var(--text-3); }
-  .empty i { font-size: 40px; opacity: 0.4; }
-  .loader { text-align: center; padding: 60px 20px; color: var(--text-2); }
-  .spin { animation: spin 1s linear infinite; display: inline-block; font-size: 30px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .footer { text-align: center; font-size: 11px; color: var(--text-3); margin-top: 20px; padding: 0 16px; }
-  .pmoc-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--bg); border-radius: 8px; margin-bottom: 8px; }
-  .pmoc-item .info-pmoc { font-size: 13px; font-weight: 600; }
-  .pmoc-item .date-pmoc { font-size: 11px; color: var(--text-3); }
+  :root { --verde:#0a4a36; --verde-mid:#1a7a55; --verde-bg:#e6f5f0; --bg:#f4f6f5; --text:#1a1a1a; --text-2:#555; --text-3:#999; --border:#e5e9e7; --red:#b83232; --amber:#c07a1a; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); padding-bottom:30px; }
+  .header { background:var(--verde); color:white; padding:14px 18px; display:flex; align-items:center; gap:12px; }
+  .header .logo { width:40px; height:40px; background:rgba(255,255,255,0.15); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+  .header h1 { font-size:15px; font-weight:700; } .header p { font-size:11px; opacity:.75; }
+  .container { max-width:600px; margin:0 auto; padding:14px; }
+  .card { background:white; border-radius:12px; padding:16px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,0.07); }
+  .card-title { font-size:11px; font-weight:700; color:var(--verde); text-transform:uppercase; letter-spacing:.05em; margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+  .eq-name { font-size:20px; font-weight:700; margin-bottom:2px; }
+  .eq-sub { font-size:13px; color:var(--text-2); }
+  .badge { display:inline-block; font-size:11px; padding:3px 10px; border-radius:12px; background:var(--verde-bg); color:var(--verde); font-weight:600; margin-top:8px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  .info { padding:8px 10px; background:var(--bg); border-radius:8px; }
+  .info .lbl { font-size:10px; color:var(--text-3); text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+  .info .val { font-size:13px; font-weight:600; }
+  .manut-item { border-left:3px solid var(--verde); padding:10px 12px; background:var(--bg); border-radius:8px; margin-bottom:10px; }
+  .manut-item .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .manut-item .data { font-size:13px; font-weight:700; }
+  .manut-item .tec { font-size:12px; color:var(--text-2); }
+  .chip { font-size:10px; padding:2px 8px; border-radius:10px; font-weight:600; }
+  .chip-ok { background:var(--verde-bg); color:var(--verde); }
+  .chip-warn { background:#faeeda; color:var(--amber); }
+  .chip-bad { background:#fdeaea; color:var(--red); }
+  .empty { text-align:center; padding:24px; color:var(--text-3); font-size:13px; }
+  .loader { text-align:center; padding:60px 20px; color:var(--text-2); }
+  .spin { animation:spin 1s linear infinite; display:inline-block; font-size:32px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .footer { text-align:center; font-size:11px; color:var(--text-3); margin-top:16px; }
+  .pmoc-card { display:flex; align-items:center; gap:12px; padding:12px; background:var(--bg); border-radius:8px; margin-bottom:8px; }
+  .pmoc-icon { width:40px; height:40px; background:var(--verde-bg); color:var(--verde); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+  .pmoc-info { flex:1; }
+  .pmoc-info .num { font-size:13px; font-weight:700; }
+  .pmoc-info .dt { font-size:11px; color:var(--text-3); }
+  .btn-down { background:var(--verde); color:white; border:none; border-radius:8px; padding:8px 14px; font-size:12px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; flex-shrink:0; }
+  .btn-down:active { opacity:.85; }
 </style>
 </head>
 <body>
-
 <div class="header">
   <div class="logo"><i class="ti ti-air-conditioning"></i></div>
-  <div>
-    <h1>PMOC Digital</h1>
-    <p>Consulta pública de equipamento</p>
-  </div>
+  <div><h1>PMOC Digital</h1><p>Consulta pública de equipamento</p></div>
 </div>
-
 <div class="container" id="conteudo">
-  <div class="loader">
-    <div class="spin"><i class="ti ti-loader-2"></i></div>
-    <p style="margin-top:12px">Carregando dados do equipamento...</p>
-  </div>
+  <div class="loader"><div class="spin"><i class="ti ti-loader-2"></i></div><p style="margin-top:12px">Carregando...</p></div>
 </div>
-
-<div class="footer">
-  Sistema PMOC Digital · Desenvolvido por Eng. Alex Luiz de Souza Leandro
-</div>
+<div class="footer">Sistema PMOC Digital · Desenvolvido por Eng. Alex Luiz de Souza Leandro</div>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAh4YpyJNt7H_tyB1SLyyEBiADoTjpmvAE",
-  authDomain: "pmoc-digital-1674e.firebaseapp.com",
-  projectId: "pmoc-digital-1674e",
-  storageBucket: "pmoc-digital-1674e.firebasestorage.app",
-  messagingSenderId: "706853488629",
-  appId: "1:706853488629:web:64995072fd57845767c2bc"
-};
-firebase.initializeApp(firebaseConfig);
+firebase.initializeApp({
+  apiKey:"AIzaSyAh4YpyJNt7H_tyB1SLyyEBiADoTjpmvAE",
+  authDomain:"pmoc-digital-1674e.firebaseapp.com",
+  projectId:"pmoc-digital-1674e",
+  storageBucket:"pmoc-digital-1674e.firebasestorage.app",
+  messagingSenderId:"706853488629",
+  appId:"1:706853488629:web:64995072fd57845767c2bc"
+});
 const firestore = firebase.firestore();
 
-function getParam(name) {
-  const url = new URL(window.location.href);
-  return url.searchParams.get(name);
-}
+function esc(s){ return (s||'').toString().replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
 
-function esc(s) { return (s||'').toString().replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+function getParam(n){ return new URL(location.href).searchParams.get(n); }
 
-async function carregar() {
-  const eqId = getParam('e');
-  if (!eqId) {
-    document.getElementById('conteudo').innerHTML =
-      '<div class="card"><div class="empty"><i class="ti ti-qrcode-off"></i><p style="margin-top:10px">QR Code inválido — equipamento não especificado.</p></div></div>';
-    return;
-  }
+// Store loaded data globally so PDF can access
+let _eq=null, _empresa=null, _pmocs=[], _manut=[];
 
+async function carregar(){
+  const code = getParam('c') || getParam('e');
+  if(!code){ show('<div class="card"><div class="empty"><i class="ti ti-qrcode-off" style="font-size:36px;opacity:.3"></i><p style="margin-top:10px">QR Code inválido.</p></div></div>'); return; }
   try {
     const col = firestore.collection('empresas_dados');
-
-    // Load all equipment chunks to find the one
     const metaDoc = await col.doc('equip_meta').get();
-    let equipamentos = [];
-    if (metaDoc.exists) {
-      const meta = metaDoc.data();
-      const docs = await Promise.all(Array.from({length: meta.chunks}, (_, i) => col.doc('equip_' + i).get()));
-      docs.forEach(d => { if (d.exists) equipamentos = equipamentos.concat(d.data().items || []); });
+    let equips=[];
+    if(metaDoc.exists){
+      const meta=metaDoc.data();
+      const docs=await Promise.all(Array.from({length:meta.chunks},(_,i)=>col.doc('equip_'+i).get()));
+      docs.forEach(d=>{ if(d.exists) equips=equips.concat(d.data().items||[]); });
     }
+    // Search by qrcode field (short code), equipment id, tag, or serie
+    const eq=equips.find(e=> e.qrcode===code||e.id===code||e.tag===code||e.serie===code);
+    if(!eq){ show('<div class="card"><div class="empty"><i class="ti ti-search-off" style="font-size:36px;opacity:.3"></i><p style="margin-top:10px">Equipamento não encontrado.</p><p style="font-size:11px;margin-top:4px">Código: '+esc(code)+'</p></div></div>'); return; }
+    _eq=eq;
 
-    const eq = equipamentos.find(e => e.id === eqId || e.qrcode === eqId || e.tag === eqId);
-    if (!eq) {
-      document.getElementById('conteudo').innerHTML =
-        '<div class="card"><div class="empty"><i class="ti ti-search-off"></i><p style="margin-top:10px">Equipamento não encontrado.</p><p style="font-size:11px;margin-top:6px">Código: ' + esc(eqId) + '</p></div></div>';
-      return;
+    // Empresa
+    let empresa=null;
+    if(eq.empresaId){
+      const ed=await col.doc('emp_'+eq.empresaId).get();
+      if(ed.exists) empresa=ed.data();
     }
+    _empresa=empresa;
 
-    // Load empresa
-    const empMeta = await col.doc('emp_meta').get();
-    let empresa = null;
-    if (empMeta.exists && eq.empresaId) {
-      const empDoc = await col.doc('emp_' + eq.empresaId).get();
-      if (empDoc.exists) empresa = empDoc.data();
-    }
+    // Manutencoes
+    const manutDoc=await col.doc('manutencoes').get();
+    _manut=manutDoc.exists?(manutDoc.data().items||[]).filter(m=>m.equipId===eq.id):[];
 
-    // Load manutencoes for this equipment
-    const manutDoc = await col.doc('manutencoes').get();
-    const manutencoes = manutDoc.exists ? (manutDoc.data().items || []).filter(m => m.equipId === eq.id) : [];
+    // PMOCs
+    const pmocsDoc=await col.doc('pmocs').get();
+    _pmocs=pmocsDoc.exists?(pmocsDoc.data().items||[]).filter(p=>p.empId===eq.empresaId):[];
 
-    // Load PMOCs for this empresa
-    const pmocsDoc = await col.doc('pmocs').get();
-    const pmocs = pmocsDoc.exists ? (pmocsDoc.data().items || []).filter(p => p.empId === eq.empresaId) : [];
-
-    render(eq, empresa, manutencoes, pmocs);
-  } catch(e) {
+    render();
+  } catch(e){
     console.error(e);
-    document.getElementById('conteudo').innerHTML =
-      '<div class="card"><div class="empty"><i class="ti ti-wifi-off"></i><p style="margin-top:10px">Erro ao carregar. Verifique a conexão.</p></div></div>';
+    show('<div class="card"><div class="empty"><i class="ti ti-wifi-off" style="font-size:36px;opacity:.3"></i><p style="margin-top:10px">Erro ao carregar.<br>Verifique a conexão.</p></div></div>');
   }
 }
 
-function render(eq, empresa, manutencoes, pmocs) {
-  let html = '';
+function show(html){ document.getElementById('conteudo').innerHTML=html; }
+
+function render(){
+  const eq=_eq, empresa=_empresa, manutencoes=_manut, pmocs=_pmocs;
+  let html='';
 
   // Equipamento
-  html += '<div class="card">';
-  html += '<div class="eq-name">' + esc(eq.tipo) + (eq.tag ? ' · ' + esc(eq.tag) : '') + '</div>';
-  html += '<div class="eq-sub">' + esc((eq.marca||'') + ' ' + (eq.modelo||'')).trim() + '</div>';
-  if (eq.freq) html += '<span class="badge">Manutenção ' + esc(eq.freq) + '</span>';
-  html += '<div class="grid2" style="margin-top:14px">';
-  if (eq.btu)   html += '<div class="info"><div class="lbl">Capacidade</div><div class="val">' + esc(eq.btu) + ' BTU</div></div>';
-  if (eq.gas)   html += '<div class="info"><div class="lbl">Refrigerante</div><div class="val">' + esc(eq.gas) + '</div></div>';
-  if (eq.local) html += '<div class="info"><div class="lbl">Localização</div><div class="val">' + esc(eq.local) + '</div></div>';
-  if (eq.area)  html += '<div class="info"><div class="lbl">Área</div><div class="val">' + esc(eq.area) + ' m²</div></div>';
-  if (eq.patrimonio) html += '<div class="info"><div class="lbl">Patrimônio</div><div class="val">' + esc(eq.patrimonio) + '</div></div>';
-  if (eq.serie) html += '<div class="info"><div class="lbl">Nº Série</div><div class="val">' + esc(eq.serie) + '</div></div>';
-  html += '</div></div>';
+  html+='<div class="card">';
+  html+='<div class="eq-name">'+esc(eq.tipo)+(eq.tag?' · '+esc(eq.tag):'')+'</div>';
+  html+='<div class="eq-sub">'+esc(((eq.marca||'')+' '+(eq.modelo||'')).trim())+'</div>';
+  if(eq.freq) html+='<span class="badge">Manutenção '+esc(eq.freq)+'</span>';
+  html+='<div class="grid2">';
+  if(eq.btu)   html+='<div class="info"><div class="lbl">Capacidade</div><div class="val">'+esc(eq.btu)+' BTU</div></div>';
+  if(eq.gas)   html+='<div class="info"><div class="lbl">Refrigerante</div><div class="val">'+esc(eq.gas)+'</div></div>';
+  if(eq.local) html+='<div class="info"><div class="lbl">Localização</div><div class="val">'+esc(eq.local)+'</div></div>';
+  if(eq.area)  html+='<div class="info"><div class="lbl">Área</div><div class="val">'+esc(eq.area)+' m²</div></div>';
+  if(eq.patrimonio) html+='<div class="info"><div class="lbl">Patrimônio</div><div class="val">'+esc(eq.patrimonio)+'</div></div>';
+  if(eq.serie) html+='<div class="info"><div class="lbl">Nº Série</div><div class="val">'+esc(eq.serie)+'</div></div>';
+  html+='</div></div>';
 
   // Empresa
-  if (empresa) {
-    html += '<div class="card">';
-    html += '<div class="card-title"><i class="ti ti-building"></i> Empresa / Local</div>';
-    html += '<div class="info" style="margin-bottom:8px"><div class="lbl">Razão Social</div><div class="val">' + esc(empresa.nome) + '</div></div>';
-    if (empresa.cnpj) html += '<div class="info" style="margin-bottom:8px"><div class="lbl">CNPJ</div><div class="val">' + esc(empresa.cnpj) + '</div></div>';
-    const end = [empresa.rua, empresa.numero, empresa.bairro, empresa.cidade, empresa.uf].filter(Boolean).join(', ');
-    if (end) html += '<div class="info"><div class="lbl">Endereço</div><div class="val" style="font-size:12px">' + esc(end) + '</div></div>';
-    html += '</div>';
+  if(empresa){
+    html+='<div class="card"><div class="card-title"><i class="ti ti-building"></i> Empresa</div>';
+    html+='<div class="info" style="margin-bottom:8px"><div class="lbl">Razão Social</div><div class="val">'+esc(empresa.nome)+'</div></div>';
+    if(empresa.cnpj) html+='<div class="info" style="margin-bottom:8px"><div class="lbl">CNPJ</div><div class="val">'+esc(empresa.cnpj)+'</div></div>';
+    const end=[empresa.rua,empresa.numero,empresa.bairro,empresa.cidade,empresa.uf].filter(Boolean).join(', ');
+    if(end) html+='<div class="info"><div class="lbl">Endereço</div><div class="val" style="font-size:12px">'+esc(end)+'</div></div>';
+    html+='</div>';
   }
+
+  // PMOCs com botão de download
+  html+='<div class="card"><div class="card-title"><i class="ti ti-file-text"></i> Planos PMOC ('+pmocs.length+')</div>';
+  if(pmocs.length===0){
+    html+='<div class="empty">Nenhum plano PMOC disponível</div>';
+  } else {
+    pmocs.slice().reverse().forEach((p,idx)=>{
+      html+='<div class="pmoc-card">';
+      html+='<div class="pmoc-icon"><i class="ti ti-file-certificate"></i></div>';
+      html+='<div class="pmoc-info"><div class="num">PMOC '+(p.num||'')+'/'+(p.ano||'')+'</div>';
+      html+='<div class="dt">Gerado em '+esc(p.data||'')+(p.artNum?' · ART: '+esc(p.artNum):'')+'</div></div>';
+      html+='<button class="btn-down" onclick="baixarPMOC('+idx+')"><i class="ti ti-download"></i> PDF</button>';
+      html+='</div>';
+    });
+  }
+  html+='</div>';
 
   // Manutenções
-  html += '<div class="card">';
-  html += '<div class="card-title"><i class="ti ti-tool"></i> Histórico de Manutenções (' + manutencoes.length + ')</div>';
-  if (manutencoes.length === 0) {
-    html += '<div class="empty" style="padding:20px"><i class="ti ti-clipboard-off"></i><p style="margin-top:8px;font-size:13px">Nenhuma manutenção registrada</p></div>';
+  html+='<div class="card"><div class="card-title"><i class="ti ti-tool"></i> Manutenções ('+manutencoes.length+')</div>';
+  if(manutencoes.length===0){
+    html+='<div class="empty">Nenhuma manutenção registrada</div>';
   } else {
-    manutencoes.slice().reverse().forEach(m => {
-      const conf = (m.atividades||[]).filter(a => a.status==='Conforme').length;
-      const total = (m.atividades||[]).length;
-      const tudoOk = conf === total && total > 0;
-      html += '<div class="manut-item">';
-      html += '<div class="top"><span class="data">' + esc(m.data) + (m.hora ? ' · ' + esc(m.hora) : '') + '</span>';
-      html += '<span class="status-chip ' + (tudoOk ? 'chip-ok' : 'chip-warn') + '">' + conf + '/' + total + ' OK</span></div>';
-      html += '<div class="tec"><i class="ti ti-user" style="font-size:11px"></i> ' + esc(m.tec1Nome || '') + (m.tec2Nome ? ' + ' + esc(m.tec2Nome) : '') + '</div>';
-      if (m.obs) html += '<div style="font-size:11px;color:var(--text-3);margin-top:4px">' + esc(m.obs) + '</div>';
-      html += '</div>';
+    manutencoes.slice().reverse().forEach(m=>{
+      const conf=(m.atividades||[]).filter(a=>a.status==='Conforme').length;
+      const nconf=(m.atividades||[]).filter(a=>a.status==='Não conforme').length;
+      const total=(m.atividades||[]).length;
+      const chipCls=nconf>0?'chip-bad':conf===total&&total>0?'chip-ok':'chip-warn';
+      html+='<div class="manut-item">';
+      html+='<div class="top"><span class="data">'+esc(m.data)+(m.hora?' · '+esc(m.hora):'')+'</span>';
+      html+='<span class="chip '+chipCls+'">'+conf+'/'+total+' Conforme</span></div>';
+      html+='<div class="tec">👤 '+esc(m.tec1Nome||'')+(m.tec2Nome?' + '+esc(m.tec2Nome):'')+'</div>';
+      if(m.obs) html+='<div style="font-size:11px;color:var(--text-3);margin-top:4px">'+esc(m.obs)+'</div>';
+      html+='</div>';
     });
   }
-  html += '</div>';
+  html+='</div>';
 
-  // PMOCs
-  html += '<div class="card">';
-  html += '<div class="card-title"><i class="ti ti-file-text"></i> Planos PMOC (' + pmocs.length + ')</div>';
-  if (pmocs.length === 0) {
-    html += '<div class="empty" style="padding:20px"><i class="ti ti-file-off"></i><p style="margin-top:8px;font-size:13px">Nenhum PMOC gerado</p></div>';
-  } else {
-    pmocs.slice().reverse().forEach(p => {
-      html += '<div class="pmoc-item"><div>';
-      html += '<div class="info-pmoc">PMOC ' + esc(p.num || '') + '/' + esc(p.ano || '') + '</div>';
-      html += '<div class="date-pmoc">Gerado em ' + esc(p.data || '') + (p.artNum ? ' · ART: ' + esc(p.artNum) : '') + '</div>';
-      html += '</div><i class="ti ti-circle-check" style="color:var(--verde);font-size:20px"></i></div>';
-    });
+  show(html);
+}
+
+function baixarPMOC(idx){
+  const p=_pmocs.slice().reverse()[idx];
+  if(!p){ alert('PMOC não disponível'); return; }
+  // Generate simple PDF with available data
+  if(typeof jspdf === 'undefined' && typeof window.jsPDF === 'undefined'){
+    alert('Aguarde o carregamento da biblioteca PDF...'); return;
   }
-  html += '</div>';
+  const { jsPDF } = window.jspdf || window;
+  const doc = new jsPDF();
+  const M=15, W=210;
+  let y=20;
 
-  document.getElementById('conteudo').innerHTML = html;
+  doc.setFillColor(10,74,54); doc.rect(0,0,210,30,'F');
+  doc.setTextColor(255,255,255); doc.setFont(undefined,'bold'); doc.setFontSize(16);
+  doc.text('PMOC — Plano de Manutenção',M,12);
+  doc.setFontSize(10); doc.setFont(undefined,'normal');
+  doc.text('Operação e Controle de Climatização',M,20);
+  y=40;
+
+  doc.setTextColor(30,30,30); doc.setFontSize(11); doc.setFont(undefined,'bold');
+  doc.text('Empresa: '+(_empresa?.nome||p.empNome||''), M, y); y+=8;
+  doc.text('PMOC Nº: '+(p.num||'')+' / '+(p.ano||''), M, y); y+=8;
+  doc.text('Data: '+(p.data||''), M, y); y+=8;
+  if(p.artNum){ doc.text('ART: '+p.artNum, M, y); y+=8; }
+  doc.setFont(undefined,'normal');
+  if(_eq){ doc.text('Equipamento: '+(_eq.tipo||'')+((_eq.marca||'')?' — '+_eq.marca:''), M, y); y+=8; }
+  if(_eq?.local){ doc.text('Localização: '+_eq.local, M, y); y+=8; }
+
+  y+=6;
+  doc.setFontSize(9); doc.setTextColor(100,100,100);
+  doc.text('Gerado via PMOC Digital · Eng. Alex Luiz de Souza Leandro', M, y);
+
+  doc.save('PMOC_'+(p.num||'')+'_'+(p.ano||'')+'.pdf');
 }
 
 carregar();
