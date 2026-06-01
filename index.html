@@ -4065,12 +4065,8 @@ function restaurarBackup() {
     const d = new Date(b.ts);
     const data = JSON.parse(b.data);
     return i + ': ' + d.toLocaleString('pt-BR') + ' (' + (data.equipamentos||[]).length + ' equip., ' + (data.empresas||[]).length + ' emp.)';
-  }).join('
-');
-  const escolha = prompt('Backups disponíveis:
-' + opts + '
-
-Digite o número do backup para restaurar:');
+  }).join('\n');
+  const escolha = prompt('Backups disponíveis:\n' + opts + '\n\nDigite o número do backup para restaurar:');
   if (escolha === null) return;
   const idx = parseInt(escolha);
   if (isNaN(idx) || idx < 0 || idx >= backups.length) { showToast('Número inválido', 'error'); return; }
