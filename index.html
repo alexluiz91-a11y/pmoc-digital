@@ -557,6 +557,15 @@ select.field-input {
     </div>
   </div>
 
+  <!-- Aviso offline / pendências -->
+  <div id="sync-lembrete" style="display:none;background:#f59e0b;color:white;padding:8px 14px;align-items:center;justify-content:space-between;gap:10px;font-size:12px;font-weight:500;flex-wrap:wrap">
+    <span id="sync-lembrete-txt">⚠️ Dados salvos localmente.</span>
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      <button onclick="enviarDados(false).then(function(){limparPendencias();})" style="background:white;color:#f59e0b;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">⬆ Enviar agora</button>
+      <button onclick="fecharLembrete()" style="background:rgba(255,255,255,0.3);color:white;border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">✕</button>
+    </div>
+  </div>
+
   <div class="content">
     <!-- DASHBOARD -->
     <div id="s-home" class="screen active">
@@ -1249,7 +1258,7 @@ select.field-input {
     </div>
     <div id="perfil-content"></div>
     <div class="divider-or" style="margin:16px 0"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <button class="btn btn-outline-green" onclick="exportarDados()" style="justify-content:center;font-size:12px">
         <i class="ti ti-download"></i> Exportar
       </button>
@@ -1258,6 +1267,9 @@ select.field-input {
       </label>
       <input type="file" id="import-input" accept=".json" style="display:none" onchange="importarDados(this)">
     </div>
+    <button class="btn btn-full" onclick="restaurarBackup()" style="justify-content:center;font-size:12px;margin-bottom:8px">
+      <i class="ti ti-history"></i> Restaurar backup local
+    </button>
     <button class="btn btn-full btn-danger" onclick="logout()" style="justify-content:center"><i class="ti ti-logout"></i> Sair da conta</button>
   </div>
 </div>
@@ -1290,25 +1302,82 @@ if (!db.tecnicos)    db.tecnicos    = [];
 if (!db.manutencoes) db.manutencoes = [];
 let currentUser = JSON.parse(localStorage.getItem('pmoc_user') || 'null');
 
-// Save to localStorage AND Firestore
+// ===== BACKUP LOCAL (ponto de restauração) =================================
+// Salva backup com timestamp — mantém os últimos 3 backups
+function salvarBackupLocal() {
+  try {
+    const ts = new Date().toISOString();
+    const backups = JSON.parse(localStorage.getItem('pmoc_backups') || '[]');
+    backups.unshift({ ts, data: JSON.stringify(db) });
+    // Manter apenas os 3 últimos
+    while (backups.length > 3) backups.pop();
+    localStorage.setItem('pmoc_backups', JSON.stringify(backups));
+  } catch(e) { console.warn('Backup local falhou:', e); }
+}
+
+// Pendências offline
+let pendenciasOffline = JSON.parse(localStorage.getItem('pmoc_pendencias') || '0');
+function marcarPendenciaOffline() {
+  pendenciasOffline++;
+  localStorage.setItem('pmoc_pendencias', pendenciasOffline);
+  mostrarAvisoOffline();
+}
+function limparPendencias() {
+  pendenciasOffline = 0;
+  localStorage.setItem('pmoc_pendencias', '0');
+  fecharLembrete();
+}
+function mostrarAvisoOffline() {
+  const bar = document.getElementById('sync-lembrete');
+  if (!bar) return;
+  if (!navigator.onLine) {
+    bar.style.display = 'flex';
+    const span = document.getElementById('sync-lembrete-txt');
+    if (span) span.textContent = '📵 Sem internet. ' + pendenciasOffline + ' alteração(ões) salvas localmente. Serão enviadas ao conectar.';
+  } else if (pendenciasOffline > 0) {
+    bar.style.display = 'flex';
+    const span = document.getElementById('sync-lembrete-txt');
+    if (span) span.innerHTML = '⚠️ ' + pendenciasOffline + ' alteração(ões) pendente(s) na nuvem. <b>Clique em Enviar.</b>';
+  } else {
+    fecharLembrete();
+  }
+}
+
+// Salvar na nuvem automaticamente ao reconectar
+window.addEventListener('online', () => {
+  console.log('Online — tentando enviar pendências...');
+  if (pendenciasOffline > 0 && currentUser && currentUser.gdrive) {
+    enviarDados(true).then(() => { limparPendencias(); showToast('✓ Dados pendentes enviados para a nuvem!', 'success'); });
+  }
+  mostrarAvisoOffline();
+});
+window.addEventListener('offline', () => { mostrarAvisoOffline(); });
+
+// Save to localStorage AND Firestore (auto-save completo)
+let autoSaveTimer = null;
 function saveDb() {
   localStorage.setItem('pmoc_v2', JSON.stringify(db));
+  salvarBackupLocal();
+
   if (currentUser && currentUser.gdrive) {
-    // auto-save disabled
-  } else if (currentUser && !currentUser.gdrive) {
-    // Local user — show sync reminder
-    lembreteSincronizar();
+    if (navigator.onLine) {
+      // Debounce 2s para não sobrecarregar
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => {
+        enviarDados(true).then(() => { limparPendencias(); }).catch(() => { marcarPendenciaOffline(); });
+      }, 2000);
+    } else {
+      marcarPendenciaOffline();
+    }
+  } else {
+    // Login local
+    if (pendenciasOffline === 0) marcarPendenciaOffline();
+    else mostrarAvisoOffline();
   }
 }
 
 let lembreteTimer = null;
-function lembreteSincronizar() {
-  clearTimeout(lembreteTimer);
-  lembreteTimer = setTimeout(() => {
-    const bar = document.getElementById('sync-lembrete');
-    if (bar) { bar.style.display = 'flex'; }
-  }, 500);
-}
+function lembreteSincronizar() { mostrarAvisoOffline(); }
 
 function fecharLembrete() {
   const bar = document.getElementById('sync-lembrete');
@@ -3254,11 +3323,11 @@ function abrirJanelaImpressaoEquip(itens, logoSrc) {
     '.toolbar button { background:white; color:#0a4a36; border:none; padding:8px 22px; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer; }' +
     '.page { width:210mm; min-height:297mm; background:white; margin:20px auto; padding:8mm; display:grid; grid-template-columns:repeat(3,1fr); gap:4mm; align-content:start; box-shadow:0 2px 16px rgba(0,0,0,0.18); }' +
     '.etiqueta { display:flex; flex-direction:column; align-items:center; background:white; padding:4mm 3mm 5mm; border:0.5px solid #ccc; border-radius:3px; }' +
-    '.qr-wrap { width:49mm; height:49mm; display:flex; align-items:center; justify-content:center; overflow:hidden; }' +
+    '.qr-wrap { width:44mm; height:44mm; display:flex; align-items:center; justify-content:center; overflow:hidden; }' +
     '.etiq-code { font-size:14px; font-weight:700; font-family:monospace; color:#111; margin-top:5px; margin-bottom:2px; text-align:center; letter-spacing:0.05em; }' +
     '.etiq-line { width:100%; border-top:1px dashed #ccc; margin:5px 0; }' +
-    '.logo-wrap { width:49mm; height:49mm; display:flex; align-items:center; justify-content:center; overflow:hidden; }' +
-    '.logo-wrap img { width:49mm; height:49mm; object-fit:contain; }' +
+    '.logo-wrap { width:44mm; height:44mm; display:flex; align-items:center; justify-content:center; overflow:hidden; }' +
+    '.logo-wrap img { width:44mm; height:44mm; object-fit:contain; }' +
     '.no-logo { font-size:10px; color:#aaa; }' + '.etiq-tel { font-size:11px; color:#333; text-align:center; margin-top:5px; font-weight:500; }' +
     '@media print { .toolbar { display:none; } body { background:white; } .page { margin:0; box-shadow:none; } }' +
     '</style></head><body>' +
@@ -3296,7 +3365,7 @@ function abrirJanelaImpressao(codigos, logoSrc) {
     'data.forEach(function(it){' +
     'var el=document.getElementById("qr-"+it.label.replace(/[^a-zA-Z0-9]/g,"-"));' +
     'if(el&&typeof QRCode!=="undefined"){' +
-    'new QRCode(el,{text:it.url,width:185,height:185,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});var cvs=el.querySelector("canvas,img");if(cvs){cvs.style.width="49mm";cvs.style.height="49mm";}' +
+    'new QRCode(el,{text:it.url,width:167,height:167,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});var cvs=el.querySelector("canvas,img");if(cvs){cvs.style.width="44mm";cvs.style.height="44mm";}' +
     'var cvs=el.querySelector("canvas");if(cvs){cvs.style.width="36mm";cvs.style.height="36mm";}}});};';
 
   const html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
@@ -3989,6 +4058,32 @@ if ('serviceWorker' in navigator) {
 }
 
 // ===== EXPORT / IMPORT =====================================================
+function restaurarBackup() {
+  const backups = JSON.parse(localStorage.getItem('pmoc_backups') || '[]');
+  if (backups.length === 0) { showToast('Nenhum backup local encontrado', 'error'); return; }
+  const opts = backups.map((b, i) => {
+    const d = new Date(b.ts);
+    const data = JSON.parse(b.data);
+    return i + ': ' + d.toLocaleString('pt-BR') + ' (' + (data.equipamentos||[]).length + ' equip., ' + (data.empresas||[]).length + ' emp.)';
+  }).join('
+');
+  const escolha = prompt('Backups disponíveis:
+' + opts + '
+
+Digite o número do backup para restaurar:');
+  if (escolha === null) return;
+  const idx = parseInt(escolha);
+  if (isNaN(idx) || idx < 0 || idx >= backups.length) { showToast('Número inválido', 'error'); return; }
+  if (!confirm('Restaurar backup de ' + new Date(backups[idx].ts).toLocaleString('pt-BR') + '? Os dados atuais serão substituídos.')) return;
+  db = JSON.parse(backups[idx].data);
+  if (!db.tecnicos)    db.tecnicos    = [];
+  if (!db.manutencoes) db.manutencoes = [];
+  localStorage.setItem('pmoc_v2', JSON.stringify(db));
+  renderAll();
+  fecharModal('m-perfil');
+  showToast('✓ Backup restaurado com sucesso!', 'success');
+}
+
 function exportarDados() {
   const dados = JSON.stringify(db, null, 2);
   const blob = new Blob([dados], { type: 'application/json' });
