@@ -3336,7 +3336,8 @@ function abrirJanelaImpressao(codigos, logoSrc) {
   }).join('');
 
   const itemsJson = JSON.stringify(items.map(function(it) {
-    return { id: 'qr-' + it.label.replace(/[^a-zA-Z0-9]/g, '-'), url: it.url };
+    const url = it.url || ('https://alexluiz91-a11y.github.io/pmoc-digital/v.html?c=' + it.label);
+    return { id: 'qr-' + it.label.replace(/[^a-zA-Z0-9]/g, '-'), url: url, label: it.label };
   }));
 
   const pageHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
