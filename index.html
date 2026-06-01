@@ -3311,56 +3311,7 @@ async function gerarQRequipamentos() {
   abrirJanelaImpressaoEquip(itens, logoDataUrl);
 }
 
-function abrirJanelaImpressaoEquip(itens, logoSrc) {
-  const win = window.open('', '_blank', 'width=960,height=750');
-  const logoB64 = logoSrc || '';
-  const etiquetas = itens.map(it => {
-    const sid = 'qr-' + it.tag.replace(/[^a-zA-Z0-9]/g,'-');
-    const logoHtml = logoB64
-      ? '<div class="logo-wrap"><img src="' + logoB64 + '"></div>'
-      : '<div class="logo-wrap"><span class="no-logo">PMOC Digital</span></div>';
-    return '<div class="etiqueta">' +
-      '<div class="qr-wrap" id="' + sid + '"></div>' +
-      '<div class="etiq-code">' + it.label + '</div>' +
-      '<div class="etiq-line"></div>' +
-      logoHtml + (it.tel ? '<div class="etiq-tel">' + it.tel + '</div>' : '') + '</div>';
-  }).join('');
-
-  const qrData = itens.map(it => ({ id: 'qr-' + it.tag.replace(/[^a-zA-Z0-9]/g,'-'), url: it.url }));
-
-  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>QR Codes dos Equipamentos</title>' +
-    '<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></scr' + 'ipt>' +
-    '<style>' +
-    '* { box-sizing:border-box; margin:0; padding:0; }' +
-    'body { background:#f0f0f0; font-family:Arial,sans-serif; }' +
-    '.toolbar { background:#0a4a36; color:white; padding:10px 20px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }' +
-    '.toolbar h2 { font-size:15px; } .toolbar p { font-size:11px; opacity:0.75; }' +
-    '.toolbar button { background:white; color:#0a4a36; border:none; padding:8px 22px; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer; }' +
-    '.page { width:210mm; min-height:297mm; background:white; margin:20px auto; padding:8mm; display:grid; grid-template-columns:repeat(3,1fr); gap:4mm; align-content:start; box-shadow:0 2px 16px rgba(0,0,0,0.18); }' +
-    '.etiqueta { display:flex; flex-direction:column; align-items:center; background:white; padding:4mm 3mm 5mm; border:0.5px solid #ccc; border-radius:3px; }' +
-    '.qr-wrap { width:44mm; height:44mm; display:flex; align-items:center; justify-content:center; overflow:hidden; }' +
-    '.etiq-code { font-size:14px; font-weight:700; font-family:monospace; color:#111; margin-top:5px; margin-bottom:2px; text-align:center; letter-spacing:0.05em; }' +
-    '.etiq-line { width:100%; border-top:1px dashed #ccc; margin:5px 0; }' +
-    '.logo-wrap { width:44mm; height:44mm; display:flex; align-items:center; justify-content:center; overflow:hidden; }' +
-    '.logo-wrap img { width:44mm; height:44mm; object-fit:contain; }' +
-    '.no-logo { font-size:10px; color:#aaa; }' + '.etiq-tel { font-size:11px; color:#333; text-align:center; margin-top:5px; font-weight:500; }' +
-    '@media print { .toolbar { display:none; } body { background:white; } .page { margin:0; box-shadow:none; } }' +
-    '</style></head><body>' +
-    '<div class="toolbar"><div><h2>QR Codes dos Equipamentos</h2><p>' + itens.length + ' etiquetas · Cliente escaneia e vê o histórico</p></div>' +
-    '<button onclick="window.print()">Imprimir</button></div>' +
-    '<div class="page">' + etiquetas + '</div>' +
-    '<scr' + 'ipt>window.onload = function() {' +
-    'var data = ' + JSON.stringify(qrData) + ';' +
-    'data.forEach(function(d) {' +
-    'var el = document.getElementById(d.id);' +
-    'if (el && typeof QRCode !== "undefined") {' +
-    'new QRCode(el, { text:d.url, width:167, height:167, colorDark:"#000000", colorLight:"#ffffff", correctLevel:QRCode.CorrectLevel.M });' +
-    'var cvs = el.querySelector("canvas"); if (cvs) { cvs.style.width="44mm"; cvs.style.height="44mm"; }' +
-    '}});};</scr' + 'ipt></body></html>');
-  win.document.close();
-}
-
-function abrirJanelaImpressao(codigos, logoSrc) {function abrirJanelaImpressao(codigos, logoSrc) {
+function abrirJanelaImpressao(codigos, logoSrc) {
   const win = window.open('', '_blank', 'width=960,height=750');
   if (!win) { alert('Popup bloqueado. Permita popups para este site.'); return; }
   const logoB64 = logoSrc || '';
