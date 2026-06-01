@@ -3259,7 +3259,6 @@ function imprimirQRCodes() {
     const url = gerarURLequip(label);
     return { url, label, tel };
   });
-  console.log('First item URL:', items[0]?.url);
   abrirJanelaImpressao(items, logoDataUrl);
 }
 
@@ -3361,29 +3360,73 @@ function abrirJanelaImpressaoEquip(itens, logoSrc) {
   win.document.close();
 }
 
-function abrirJanelaImpressao(codigos, logoSrc) {
+function abrirJanelaImpressao(codigos, logoSrc) {function abrirJanelaImpressao(codigos, logoSrc) {
   const win = window.open('', '_blank', 'width=960,height=750');
+  if (!win) { alert('Popup bloqueado. Permita popups para este site.'); return; }
   const logoB64 = logoSrc || '';
-  // Normalize: accept both plain strings and {url, label} objects
-  const items = codigos.map(function(x) { return typeof x === 'string' ? { url: x, label: x } : x; });
+  const items = codigos.map(function(x) {
+    return typeof x === 'string' ? { url: x, label: x, tel: '' } : x;
+  });
+
+  const logoHtmlFn = function(it) {
+    const telLine = it.tel ? '<div class="etiq-tel">' + it.tel + '</div>' : '';
+    if (logoB64) return '<div class="logo-wrap"><img src="' + logoB64 + '"></div>' + telLine;
+    return '<div class="logo-wrap"><span class="no-logo">PMOC Digital</span></div>' + telLine;
+  };
 
   const etiquetasHtml = items.map(function(it) {
-    const sid = 'qr-' + it.label.replace(/[^a-zA-Z0-9]/g,'-');
-    const logoHtml = logoB64
-      ? '<div class="logo-wrap"><img src="' + logoB64 + '"></div>'
-      : '<div class="logo-wrap"><span class="no-logo">PMOC Digital</span></div>';
-    return '<div class="etiqueta"><div class="qr-wrap" id="' + sid + '"></div>' +
+    const sid = 'qr-' + it.label.replace(/[^a-zA-Z0-9]/g, '-');
+    return '<div class="etiqueta">' +
+      '<div class="qr-wrap" id="' + sid + '"></div>' +
       '<div class="etiq-code">' + it.label + '</div>' +
-      '<div class="etiq-line"></div>' + logoHtml + '</div>';
+      '<div class="etiq-line"></div>' +
+      logoHtmlFn(it) +
+      '</div>';
   }).join('');
 
-  const qrScript = 'window.onload=function(){var data=' + JSON.stringify(items) + ';' +
-    'data.forEach(function(it){' +
-    'var el=document.getElementById("qr-"+it.label.replace(/[^a-zA-Z0-9]/g,"-"));' +
-    'if(el&&typeof QRCode!=="undefined"){' +
-    'new QRCode(el,{text:it.url,width:167,height:167,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});console.log("QR URL:",it.url);}}});};';
+  const itemsJson = JSON.stringify(items.map(function(it) {
+    return { id: 'qr-' + it.label.replace(/[^a-zA-Z0-9]/g, '-'), url: it.url };
+  }));
 
-  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+  const pageHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+    '<title>Etiquetas QR Code</title>' +
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>' +
+    '<style>' +
+    '*{box-sizing:border-box;margin:0;padding:0}' +
+    'body{background:#f0f0f0;font-family:Arial,sans-serif}' +
+    '.toolbar{background:#0a4a36;color:white;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}' +
+    '.toolbar h2{font-size:15px;font-weight:600}' +
+    '.toolbar p{font-size:11px;opacity:.75}' +
+    '.toolbar button{background:white;color:#0a4a36;border:none;padding:8px 22px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer}' +
+    '.page{width:210mm;min-height:297mm;background:white;margin:20px auto;padding:8mm;display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;align-content:start;box-shadow:0 2px 16px rgba(0,0,0,.18)}' +
+    '.etiqueta{display:flex;flex-direction:column;align-items:center;padding:4mm 3mm 5mm;border:.5px solid #ccc;border-radius:3px}' +
+    '.qr-wrap{width:44mm;height:44mm;display:flex;align-items:center;justify-content:center;overflow:hidden}' +
+    '.qr-wrap canvas,.qr-wrap img{width:44mm!important;height:44mm!important}' +
+    '.etiq-code{font-size:14px;font-weight:700;font-family:monospace;color:#111;margin-top:5px;margin-bottom:2px;text-align:center;letter-spacing:.05em}' +
+    '.etiq-line{width:100%;border-top:1px dashed #ccc;margin:5px 0}' +
+    '.logo-wrap{width:44mm;height:44mm;display:flex;align-items:center;justify-content:center;overflow:hidden}' +
+    '.logo-wrap img{width:44mm;height:44mm;object-fit:contain}' +
+    '.no-logo{font-size:10px;color:#aaa}' +
+    '.etiq-tel{font-size:11px;color:#333;text-align:center;margin-top:5px;font-weight:500}' +
+    '@media print{.toolbar{display:none}body{background:white}.page{margin:0;box-shadow:none}}' +
+    '</style></head><body>' +
+    '<div class="toolbar"><div><h2>Etiquetas QR Code</h2><p>' + items.length + ' etiquetas geradas</p></div>' +
+    '<button onclick="window.print()">Imprimir</button></div>' +
+    '<div class="page">' + etiquetasHtml + '</div>' +
+    '<script>' +
+    'window.onload=function(){' +
+    'var data=' + itemsJson + ';' +
+    'data.forEach(function(d){' +
+    'var el=document.getElementById(d.id);' +
+    'if(!el||typeof QRCode==="undefined")return;' +
+    'new QRCode(el,{text:d.url,width:167,height:167,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});' +
+    '});' +
+    '};' +
+    '<\/script></body></html>';
+
+  win.document.write(pageHtml);
+  win.document.close();
+}meta charset="UTF-8">' +
     '<title>Etiquetas QR Code — PMOC Digital</title>' +
     '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>' +
     '<style>' +
