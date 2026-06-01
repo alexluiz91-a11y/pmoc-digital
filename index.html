@@ -3416,12 +3416,15 @@ function abrirJanelaImpressao(codigos, logoSrc) {function abrirJanelaImpressao(c
     '<script>' +
     'window.onload=function(){' +
     'var data=' + itemsJson + ';' +
+    'function gerarQRs(){' +
+    'if(typeof QRCode==="undefined"){setTimeout(gerarQRs,200);return;}' +
     'data.forEach(function(d){' +
     'var el=document.getElementById(d.id);' +
-    'if(!el||typeof QRCode==="undefined")return;' +
+    'if(!el)return;' +
     'new QRCode(el,{text:d.url,width:167,height:167,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});' +
     '});' +
-    '};' +
+    '}' +
+    'window.onload=gerarQRs;setTimeout(gerarQRs,500);' +
     '<\/script></body></html>';
 
   win.document.write(pageHtml);
