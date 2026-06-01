@@ -1361,11 +1361,11 @@ function saveDb() {
 
   if (currentUser && currentUser.gdrive) {
     if (navigator.onLine) {
-      // Debounce 2s para não sobrecarregar
+      // Debounce 3s — after modal closes
       clearTimeout(autoSaveTimer);
       autoSaveTimer = setTimeout(() => {
         enviarDados(true).then(() => { limparPendencias(); }).catch(() => { marcarPendenciaOffline(); });
-      }, 2000);
+      }, 3000);
     } else {
       marcarPendenciaOffline();
     }
@@ -1640,7 +1640,22 @@ function fecharModal(id) {
   if (!el) return;
   el.classList.remove('open');
   el.style.display = 'none';
-  setTimeout(() => { if (!el.classList.contains('open')) el.style.display = ''; }, 100);
+  // Reset display after animation — only if still closed
+  setTimeout(() => { 
+    if (el && !el.classList.contains('open')) {
+      el.style.display = '';
+      el.style.visibility = '';
+    }
+  }, 400);
+}
+
+function forcarFecharModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('open');
+  el.style.display = 'none';
+  el.style.visibility = 'hidden';
+  setTimeout(() => { if (el && !el.classList.contains('open')) { el.style.display = ''; el.style.visibility = ''; }}, 600);
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function hoje() { return new Date().toLocaleDateString('pt-BR'); }
@@ -1964,7 +1979,7 @@ function salvarEmpresa() {
   renderEmpresas();
   preencherSelects();
   renderAll();
-  fecharModal('m-empresa');
+  forcarFecharModal('m-empresa');
   showToast((isEdit ? 'Empresa atualizada!' : 'Empresa cadastrada!') + ' ✓', 'success');
 }
 
@@ -2054,7 +2069,7 @@ function salvarEquip() {
   preencherSelects();
   renderEquip();
   renderAll();
-  fecharModal('m-equip');
+  forcarFecharModal('m-equip');
   showToast((isEdit ? 'Equipamento atualizado!' : 'Equipamento cadastrado!') + ' ✓', 'success');
 }
 
@@ -3615,7 +3630,7 @@ function salvarTecnico() {
   saveDb();
   ['tec-id','tec-nome','tec-crea','tec-esp','tec-tel','tec-email','tec-obs'].forEach(i => { const el=document.getElementById(i); if(el) el.value=''; });
   document.getElementById('tec-modal-title').textContent = 'Cadastrar técnico';
-  fecharModal('m-tec-form');
+  forcarFecharModal('m-tec-form');
   showToast((isEdit ? 'Técnico atualizado!' : 'Técnico cadastrado!') + ' ✓', 'success');
   renderTecnicos(); popularSelectsTecnicos();
 }
