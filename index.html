@@ -3259,6 +3259,7 @@ function imprimirQRCodes() {
     const url = gerarURLequip(label);
     return { url, label, tel };
   });
+  console.log('First item URL:', items[0]?.url);
   abrirJanelaImpressao(items, logoDataUrl);
 }
 
@@ -3380,8 +3381,7 @@ function abrirJanelaImpressao(codigos, logoSrc) {
     'data.forEach(function(it){' +
     'var el=document.getElementById("qr-"+it.label.replace(/[^a-zA-Z0-9]/g,"-"));' +
     'if(el&&typeof QRCode!=="undefined"){' +
-    'new QRCode(el,{text:it.url,width:167,height:167,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});var cvs=el.querySelector("canvas,img");if(cvs){cvs.style.width="44mm";cvs.style.height="44mm";}' +
-    'var cvs=el.querySelector("canvas");if(cvs){cvs.style.width="36mm";cvs.style.height="36mm";}}});};';
+    'new QRCode(el,{text:it.url,width:167,height:167,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.M});console.log("QR URL:",it.url);}}});};';
 
   const html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
     '<title>Etiquetas QR Code — PMOC Digital</title>' +
