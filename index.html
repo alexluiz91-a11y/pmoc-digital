@@ -3335,7 +3335,7 @@ function abrirJanelaImpressao(codigos, logoSrc) {
     var logoHtml = logo
       ? '<div class="lw"><img src="' + logo + '"></div>'
       : '<div class="lw"><span style="font-size:10px;color:#aaa">PMOC Digital</span></div>';
-    var telHtml = it.tel ? '<div class="tel">' + it.tel + '</div>' : '';
+    var telHtml = ''; // phone already shown in logo image
     etqs += '<div class="etq">'
           + '<div class="qw" id="' + sid + '"></div>'
           + '<div class="cod">' + it.label + '</div>'
