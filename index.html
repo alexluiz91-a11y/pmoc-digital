@@ -3608,6 +3608,93 @@ function importarDados(input) {
   reader.readAsText(file);
 }
 
+// ===== QR CODE ============================================================
+const QR_VIEWER_BASE = 'https://alexluiz91-a11y.github.io/pmoc-digital/v.html?c=';
+
+function popularExecQR() {
+  const sel = document.getElementById('qr-exec-sel');
+  if (!sel) return;
+  const executoras = (db.empresas || []).filter(e => e.tipo === 'executora');
+  sel.innerHTML = '<option value="">Selecione a empresa executadora...</option>' +
+    executoras.map(e => '<option value="' + e.id + '">' + (e.nome || '') + '</option>').join('');
+}
+
+function atualizarPreviewQR() {
+  const empId = document.getElementById('qr-exec-sel')?.value;
+  const emp = empId ? (db.empresas || []).find(e => e.id === empId) : null;
+  const logoEl = document.getElementById('qr-preview-logo');
+  if (!logoEl) return;
+  if (emp && emp.logo) {
+    logoEl.innerHTML = '<img src="' + emp.logo + '" style="width:120px;height:120px;object-fit:contain">';
+  } else {
+    logoEl.innerHTML = '<i class="ti ti-building" style="font-size:30px;color:var(--text-3)"></i>';
+  }
+}
+
+function gerarEtiquetas() {
+  const empId = document.getElementById('qr-exec-sel')?.value;
+  if (!empId) { showToast('Selecione a empresa executadora', 'error'); return; }
+  const emp = (db.empresas || []).find(e => e.id === empId);
+  if (!emp) { showToast('Empresa não encontrada', 'error'); return; }
+  const logo = emp.logo || '';
+
+  var items = [];
+  for (var i = 0; i < 6; i++) {
+    var num = Math.floor(Math.random() * 9000000) + 1000000;
+    var label = 'EQ-' + num;
+    items.push({ label: label, url: QR_VIEWER_BASE + label });
+  }
+
+  var etqs = '';
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var logoHtml = logo
+      ? '<img src="' + logo + '" style="width:151px;height:151px;object-fit:contain">'
+      : '<div style="width:151px;height:151px;display:flex;align-items:center;justify-content:center;background:#f5f5f5;font-size:12px;color:#aaa">' + (emp.nome||'Empresa') + '</div>';
+    etqs += '<div class="etq">'
+      + '<div class="qwrap" id="q' + i + '"></div>'
+      + '<div class="cod">' + it.label + '</div>'
+      + '<div class="sep"></div>'
+      + '<div class="lwrap">' + logoHtml + '</div>'
+      + '</div>';
+  }
+
+  var data = JSON.stringify(items.map(function(it, i) {
+    return { id: 'q' + i, url: it.url };
+  }));
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Etiquetas QR Code</title>'
+    + '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>'
+    + '<style>'
+    + '*{box-sizing:border-box;margin:0;padding:0}'
+    + 'body{background:#eee;font-family:Arial,sans-serif}'
+    + '.bar{background:#0a4a36;color:white;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}'
+    + '.bar h2{font-size:15px;font-weight:700}'
+    + '.bar button{background:white;color:#0a4a36;border:none;padding:8px 20px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer}'
+    + '.pg{width:210mm;background:white;margin:20px auto;padding:10mm;display:grid;grid-template-columns:repeat(3,1fr);gap:6mm;box-shadow:0 2px 12px rgba(0,0,0,.15)}'
+    + '.etq{display:flex;flex-direction:column;align-items:center;padding:4mm 2mm;border:0.5px solid #ddd;border-radius:3px;background:white}'
+    + '.qwrap{width:151px;height:151px;display:flex;align-items:center;justify-content:center}'
+    + '.qwrap canvas,.qwrap img{width:151px!important;height:151px!important}'
+    + '.cod{font-size:13px;font-weight:700;font-family:monospace;margin-top:5px;letter-spacing:0.04em;color:#111}'
+    + '.sep{width:90%;border-top:1px dashed #ccc;margin:6px 0}'
+    + '.lwrap{width:151px;height:151px;display:flex;align-items:center;justify-content:center;overflow:hidden}'
+    + '@media print{.bar{display:none}body{background:white}.pg{margin:0;padding:8mm;box-shadow:none}}'
+    + '</style></head><body>'
+    + '<div class="bar"><h2>Etiquetas QR Code — 6 etiquetas</h2>'
+    + '<button onclick="window.print()">🖨 Imprimir</button></div>'
+    + '<div class="pg">' + etqs + '</div>'
+    + '<script>var D=' + data + ';'
+    + 'function go(){if(typeof QRCode==="undefined"){setTimeout(go,300);return;}'
+    + 'D.forEach(function(d){var el=document.getElementById(d.id);if(!el)return;'
+    + 'new QRCode(el,{text:d.url,width:151,height:151,colorDark:"#000",colorLight:"#fff",correctLevel:QRCode.CorrectLevel.M});});}'
+    + 'setTimeout(go,400);<\/script></body></html>';
+
+  var win = window.open('', '_blank', 'width=960,height=700');
+  if (!win) { alert('Popup bloqueado. Permita popups para este site.'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
 // ===== INIT =====
 if (db.usuarios.length === 0) {
   db.usuarios.push({ id: uid(), nome: 'Administrador', user: 'admin', pass: btoa('admin123'), role: 'admin', criado: hoje() });
