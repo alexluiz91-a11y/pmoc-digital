@@ -1590,13 +1590,9 @@ function fecharModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.remove('open');
-  el.style.display = 'none';
-  // Reset display after animation — only if still closed
-  setTimeout(() => { 
-    if (el && !el.classList.contains('open')) {
-      el.style.display = '';
-      el.style.visibility = '';
-    }
+  el.style.setProperty('display', 'none', 'important');
+  setTimeout(function() {
+    if (el && !el.classList.contains('open')) el.style.removeProperty('display');
   }, 400);
 }
 
@@ -1604,12 +1600,13 @@ function forcarFecharModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.remove('open');
-  el.style.cssText = 'display:none!important;visibility:hidden!important';
+  // Force hide regardless of CSS
+  el.style.setProperty('display', 'none', 'important');
   setTimeout(function() {
     if (el && !el.classList.contains('open')) {
-      el.style.cssText = '';
+      el.style.removeProperty('display');
     }
-  }, 700);
+  }, 500);
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function hoje() { return new Date().toLocaleDateString('pt-BR'); }
@@ -1931,11 +1928,12 @@ function salvarEmpresa() {
   setTipoEmpresa('cliente');
   removerLogoEmpresaModal();
   document.getElementById('m-emp-title').textContent = 'Cadastrar empresa';
-  renderEmpresas();
-  preencherSelects();
-  renderAll();
   forcarFecharModal('m-empresa');
   showToast((isEdit ? 'Empresa atualizada!' : 'Empresa cadastrada!') + ' ✓', 'success');
+  renderEmpresas();
+  preencherSelects();
+  popularExecQR();
+  renderAll();
 }
 
 function editarEmpresa(id) {
@@ -2021,11 +2019,11 @@ function salvarEquip() {
   selecionarMes(0);
   const anoEl = document.getElementById('eq-ano-inicio'); if(anoEl) anoEl.value = new Date().getFullYear();
   removerFoto(1); removerFoto(2);
+  forcarFecharModal('m-equip');
+  showToast((isEdit ? 'Equipamento atualizado!' : 'Equipamento cadastrado!') + ' ✓', 'success');
   preencherSelects();
   renderEquip();
   renderAll();
-  forcarFecharModal('m-equip');
-  showToast((isEdit ? 'Equipamento atualizado!' : 'Equipamento cadastrado!') + ' ✓', 'success');
 }
 
 function excluirEquip(id) {
