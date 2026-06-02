@@ -7,90 +7,85 @@
 <title>PMOC Digital — Consulta</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <style>
-  :root{--verde:#0a4a36;--verde-mid:#1a7a55;--verde-bg:#e6f5f0;--bg:#f4f6f5;--text:#1a1a1a;--text-2:#555;--text-3:#999;--red:#b83232;--amber:#c07a1a;}
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);padding-bottom:40px;}
-  .header{background:var(--verde);color:white;padding:14px 18px;display:flex;align-items:center;gap:12px;}
-  .logo{width:40px;height:40px;background:rgba(255,255,255,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
-  .header h1{font-size:15px;font-weight:700;} .header p{font-size:11px;opacity:.75;}
-  .container{max-width:600px;margin:0 auto;padding:14px;}
-  .card{background:white;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);}
-  .card-title{font-size:11px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
-  .eq-name{font-size:20px;font-weight:700;margin-bottom:2px;}
-  .eq-sub{font-size:13px;color:var(--text-2);}
-  .badge{display:inline-block;font-size:11px;padding:3px 10px;border-radius:12px;background:var(--verde-bg);color:var(--verde);font-weight:600;margin-top:8px;}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
-  .info{padding:8px 10px;background:var(--bg);border-radius:8px;}
-  .info .lbl{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;}
-  .info .val{font-size:13px;font-weight:600;}
-  /* Manutenção items — clickable */
-  .manut-item{border-left:3px solid var(--verde);padding:10px 12px;background:var(--bg);border-radius:8px;margin-bottom:10px;cursor:pointer;transition:background .15s;}
-  .manut-item:hover{background:#dff0ea;}
-  .manut-item .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
-  .manut-item .data{font-size:13px;font-weight:700;}
-  .manut-item .tec{font-size:12px;color:var(--text-2);}
-  .chip{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;}
-  .chip-ok{background:var(--verde-bg);color:var(--verde);}
-  .chip-warn{background:#faeeda;color:var(--amber);}
-  .chip-bad{background:#fdeaea;color:var(--red);}
-  /* Manutenção detail modal */
-  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;overflow-y:auto;padding:20px 16px;}
-  .overlay.open{display:block;}
-  .modal{background:white;border-radius:16px;padding:20px;max-width:560px;margin:0 auto;}
-  .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
-  .modal-header h2{font-size:16px;font-weight:700;}
-  .close-btn{background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-3);line-height:1;}
-  .check-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px;}
-  .check-row:last-child{border-bottom:none;}
-  .s-conf{color:var(--verde);font-weight:700;font-size:11px;}
-  .s-nconf{color:var(--red);font-weight:700;font-size:11px;}
-  .s-na{color:var(--text-3);font-size:11px;}
-  .s-pend{color:var(--amber);font-weight:700;font-size:11px;}
-  /* Equipamentos da empresa */
-  .eq-chip{display:flex;align-items:center;gap:10px;padding:10px;background:var(--bg);border-radius:8px;margin-bottom:8px;cursor:pointer;text-decoration:none;color:inherit;transition:background .15s;}
-  .eq-chip:hover{background:#dff0ea;}
-  .eq-chip .ico{width:36px;height:36px;background:var(--verde-bg);color:var(--verde);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-  .eq-chip .inf .nm{font-size:13px;font-weight:600;}
-  .eq-chip .inf .sub{font-size:11px;color:var(--text-3);}
-  /* PMOC download */
-  .pmoc-card{display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border-radius:8px;margin-bottom:8px;}
-  .pmoc-icon{width:40px;height:40px;background:var(--verde-bg);color:var(--verde);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
-  .pmoc-info{flex:1;}
-  .pmoc-info .num{font-size:13px;font-weight:700;}
-  .pmoc-info .dt{font-size:11px;color:var(--text-3);}
-  .btn-down{background:var(--verde);color:white;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;flex-shrink:0;}
-  .empty{text-align:center;padding:20px;color:var(--text-3);font-size:13px;}
-  .loader{text-align:center;padding:60px 20px;color:var(--text-2);}
-  .spin{animation:spin 1s linear infinite;display:inline-block;font-size:32px;}
-  @keyframes spin{to{transform:rotate(360deg);}}
-  .footer{text-align:center;font-size:11px;color:var(--text-3);margin-top:16px;padding:0 16px;}
-  .summary-boxes{display:flex;gap:8px;margin-bottom:12px;}
-  .sum-box{flex:1;border-radius:8px;padding:8px;text-align:center;}
-  .sum-box .n{font-size:18px;font-weight:700;}
-  .sum-box .l{font-size:9px;text-transform:uppercase;font-weight:600;}
+:root{--verde:#0a4a36;--verde-mid:#1a7a55;--verde-bg:#e6f5f0;--bg:#f4f6f5;--text:#1a1a1a;--text-2:#555;--text-3:#999;--red:#b83232;--red-bg:#fdeaea;--amber:#c07a1a;--amber-bg:#faeeda;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);padding-bottom:40px;}
+.header{background:var(--verde);color:white;padding:14px 18px;display:flex;align-items:center;gap:12px;}
+.hlogo{width:40px;height:40px;background:rgba(255,255,255,.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.header h1{font-size:15px;font-weight:700;}
+.header p{font-size:11px;opacity:.75;}
+.back-btn{background:rgba(255,255,255,.2);border:none;color:white;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;flex-shrink:0;}
+.container{max-width:600px;margin:0 auto;padding:14px;}
+.card{background:white;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);}
+.card-title{font-size:11px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.eq-name{font-size:20px;font-weight:700;margin-bottom:2px;}
+.eq-sub{font-size:13px;color:var(--text-2);}
+.badge{display:inline-block;font-size:11px;padding:3px 10px;border-radius:12px;background:var(--verde-bg);color:var(--verde);font-weight:600;margin-top:8px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;}
+.ib{padding:8px 10px;background:var(--bg);border-radius:8px;}
+.ib .lbl{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;}
+.ib .val{font-size:13px;font-weight:600;}
+.manut-item{border-left:3px solid var(--verde);padding:10px 12px;background:var(--bg);border-radius:8px;margin-bottom:10px;cursor:pointer;transition:background .15s;}
+.manut-item:hover,.manut-item:active{background:#dff0ea;}
+.manut-item .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+.manut-item .dtxt{font-size:13px;font-weight:700;}
+.manut-item .tec{font-size:12px;color:var(--text-2);}
+.chip{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;}
+.chip-ok{background:var(--verde-bg);color:var(--verde);}
+.chip-warn{background:var(--amber-bg);color:var(--amber);}
+.chip-bad{background:var(--red-bg);color:var(--red);}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;overflow-y:auto;padding:20px 16px;}
+.overlay.open{display:flex;align-items:flex-start;justify-content:center;}
+.mbox{background:white;border-radius:16px;padding:20px;width:100%;max-width:540px;}
+.mhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.mhdr h2{font-size:15px;font-weight:700;}
+.cbtn{background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-3);}
+.crow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:13px;}
+.crow:last-child{border-bottom:none;}
+.s-ok{color:var(--verde);font-weight:700;font-size:11px;}
+.s-nok{color:var(--red);font-weight:700;font-size:11px;}
+.s-na{color:var(--text-3);font-size:11px;}
+.s-pend{color:var(--amber);font-weight:700;font-size:11px;}
+.eq-chip{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:8px;margin-bottom:8px;cursor:pointer;text-decoration:none;color:inherit;transition:background .15s;}
+.eq-chip:hover,.eq-chip:active{background:#dff0ea;}
+.eq-chip .ico{width:36px;height:36px;background:var(--verde-bg);color:var(--verde);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.pend-item{padding:8px 12px;border-left:3px solid var(--red);background:var(--red-bg);border-radius:6px;margin-bottom:6px;}
+.pend-eq{font-weight:700;color:var(--red);font-size:12px;margin-bottom:3px;}
+.pend-txt{color:#7a1a1a;font-size:12px;}
+.warn-item{padding:8px 12px;border-left:3px solid var(--amber);background:var(--amber-bg);border-radius:6px;margin-bottom:6px;}
+.warn-eq{font-weight:700;color:var(--amber);font-size:12px;margin-bottom:3px;}
+.pmoc-row{display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg);border-radius:8px;margin-bottom:8px;}
+.pmoc-ico{width:38px;height:38px;background:var(--verde-bg);color:var(--verde);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.pmoc-num{font-size:13px;font-weight:700;}
+.pmoc-dt{font-size:11px;color:var(--text-3);}
+.srow{display:flex;gap:8px;margin-bottom:12px;}
+.sbox{flex:1;border-radius:10px;padding:10px;text-align:center;}
+.sbox .n{font-size:20px;font-weight:700;}
+.sbox .l{font-size:9px;text-transform:uppercase;font-weight:600;margin-top:2px;}
+.loader{text-align:center;padding:60px 20px;color:var(--text-2);}
+.spin{animation:spin 1s linear infinite;display:inline-block;font-size:32px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.empty{text-align:center;padding:24px;color:var(--text-3);font-size:13px;}
+.footer{text-align:center;font-size:11px;color:var(--text-3);margin-top:16px;padding:0 16px;}
 </style>
 </head>
 <body>
-<div class="header">
-  <div class="logo"><i class="ti ti-air-conditioning"></i></div>
-  <div><h1>PMOC Digital</h1><p>Consulta pública de equipamento</p></div>
+<div class="header" id="phdr">
+  <div class="hlogo"><i class="ti ti-air-conditioning"></i></div>
+  <div><h1>PMOC Digital</h1><p id="hsub">Consulta de equipamento</p></div>
 </div>
-<div class="container" id="conteudo">
+<div class="container" id="root">
   <div class="loader"><div class="spin"><i class="ti ti-loader-2"></i></div><p style="margin-top:12px">Carregando...</p></div>
 </div>
-<div class="footer">Sistema PMOC Digital · Desenvolvido por Eng. Alex Luiz de Souza Leandro</div>
+<div class="footer">Sistema PMOC Digital · Eng. Alex Luiz de Souza Leandro</div>
 
-<!-- Modal detalhe manutenção -->
-<div class="overlay" id="manut-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="manut-modal-title">Detalhes da Manutenção</h2>
-      <button class="close-btn" onclick="fecharManutModal()">✕</button>
-    </div>
-    <div id="manut-modal-body"></div>
+<!-- Modal manutenção -->
+<div class="overlay" id="mmodal">
+  <div class="mbox">
+    <div class="mhdr"><h2 id="mtitle">Manutenção</h2><button class="cbtn" onclick="document.getElementById('mmodal').classList.remove('open')">✕</button></div>
+    <div id="mbody"></div>
   </div>
 </div>
 
@@ -103,181 +98,250 @@ firebase.initializeApp({
   messagingSenderId:"706853488629",
   appId:"1:706853488629:web:64995072fd57845767c2bc"
 });
-const firestore = firebase.firestore();
+const FS = firebase.firestore();
+function e(s){return (s||'').toString().replace(/[<>&"]/g,x=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[x]));}
+function p(n){return new URL(location.href).searchParams.get(n);}
+function show(h){document.getElementById('root').innerHTML=h;}
 
-function esc(s){return (s||'').toString().replace(/[<>&"]/g,x=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[x]));}
-function getParam(n){return new URL(location.href).searchParams.get(n);}
+var EQ=null,EMP=null,PMOCS=[],MANUT=[],ALL_EQUIPS=[];
 
-let _eq=null,_empresa=null,_pmocs=[],_manut=[],_todosEquips=[];
-
-function fecharManutModal(){document.getElementById('manut-modal').classList.remove('open');}
-
-function verManutencao(idx){
-  const m=_manut.slice().reverse()[idx];
-  if(!m) return;
-  const conf=(m.atividades||[]).filter(a=>a.status==='Conforme').length;
-  const nconf=(m.atividades||[]).filter(a=>a.status==='Não conforme').length;
-  const na=(m.atividades||[]).filter(a=>a.status==='N/A').length;
-  const pend=(m.atividades||[]).filter(a=>a.status==='Pendente').length;
-  document.getElementById('manut-modal-title').textContent='Manutenção de '+m.data+(m.hora?' às '+m.hora:'');
-  let body='';
-  body+='<div style="font-size:12px;color:var(--text-2);margin-bottom:12px">👤 '+esc(m.tec1Nome||'')+(m.tec2Nome?' + '+esc(m.tec2Nome):'')+' · '+esc(m.equipTipo||_eq?.tipo||'')+'</div>';
-  body+='<div class="summary-boxes">';
-  body+='<div class="sum-box" style="background:var(--verde-bg)"><div class="n" style="color:var(--verde)">'+conf+'</div><div class="l" style="color:var(--verde)">Conforme</div></div>';
-  body+='<div class="sum-box" style="background:#fdeaea"><div class="n" style="color:var(--red)">'+nconf+'</div><div class="l" style="color:var(--red)">Não conforme</div></div>';
-  body+='<div class="sum-box" style="background:#faeeda"><div class="n" style="color:var(--amber)">'+pend+'</div><div class="l" style="color:var(--amber)">Pendente</div></div>';
-  body+='<div class="sum-box" style="background:#f4f4f4"><div class="n" style="color:var(--text-3)">'+na+'</div><div class="l" style="color:var(--text-3)">N/A</div></div>';
-  body+='</div>';
-  body+='<div style="font-size:11px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Check-list</div>';
-  (m.atividades||[]).forEach(a=>{
-    const cls=a.status==='Conforme'?'s-conf':a.status==='Não conforme'?'s-nconf':a.status==='N/A'?'s-na':'s-pend';
-    const ico=a.status==='Conforme'?'✓':a.status==='Não conforme'?'✗':a.status==='N/A'?'—':'⚠';
-    body+='<div class="check-row"><span style="flex:1;padding-right:10px">'+esc(a.label)+'</span><span class="'+cls+'">'+ico+' '+esc(a.status)+'</span></div>';
-  });
-  if(m.obs) body+='<div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-2)">📝 '+esc(m.obs)+'</div>';
-  document.getElementById('manut-modal-body').innerHTML=body;
-  document.getElementById('manut-modal').classList.add('open');
-}
-
-async function carregar(){
-  const code=getParam('c')||getParam('e');
-  if(!code){show('<div class="card"><div class="empty"><i class="ti ti-qrcode-off" style="font-size:36px;opacity:.3"></i><p style="margin-top:10px">QR Code inválido.</p></div></div>');return;}
+async function load(){
+  const code=p('c')||p('e'), empId=p('emp');
   try{
-    const col=firestore.collection('empresas_dados');
-    const metaDoc=await col.doc('equip_meta').get();
-    let equips=[];
-    if(metaDoc.exists){
-      const meta=metaDoc.data();
-      const docs=await Promise.all(Array.from({length:meta.chunks},(_,i)=>col.doc('equip_'+i).get()));
-      docs.forEach(d=>{if(d.exists) equips=equips.concat(d.data().items||[]);});
+    const col=FS.collection('empresas_dados');
+    const meta=await col.doc('equip_meta').get();
+    var equips=[];
+    if(meta.exists){
+      const m=meta.data();
+      const ds=await Promise.all(Array.from({length:m.chunks},(_,i)=>col.doc('equip_'+i).get()));
+      ds.forEach(d=>{if(d.exists)equips=equips.concat(d.data().items||[]);});
     }
-    _todosEquips=equips;
-    const eq=equips.find(e=>e.qrcode===code||e.id===code||e.tag===code||e.serie===code);
-    if(!eq){show('<div class="card"><div class="empty"><i class="ti ti-search-off" style="font-size:36px;opacity:.3"></i><p style="margin-top:10px">Equipamento não encontrado.</p><p style="font-size:11px;margin-top:4px">Código: '+esc(code)+'</p></div></div>');return;}
-    _eq=eq;
-    let empresa=null;
-    if(eq.empresaId){const ed=await col.doc('emp_'+eq.empresaId).get();if(ed.exists) empresa=ed.data();}
-    _empresa=empresa;
-    const manutDoc=await col.doc('manutencoes').get();
-    _manut=manutDoc.exists?(manutDoc.data().items||[]).filter(m=>m.equipId===eq.id):[];
-    const pmocsDoc=await col.doc('pmocs').get();
-    _pmocs=pmocsDoc.exists?(pmocsDoc.data().items||[]).filter(p=>p.empId===eq.empresaId):[];
-    render();
-  }catch(e){
-    console.error(e);
-    show('<div class="card"><div class="empty"><i class="ti ti-wifi-off" style="font-size:36px;opacity:.3"></i><p style="margin-top:10px">Erro ao carregar.</p></div></div>');
+    ALL_EQUIPS=equips;
+    const md=await col.doc('manutencoes').get();
+    const allM=md.exists?(md.data().items||[]):[];
+    const pd=await col.doc('pmocs').get();
+    const allP=pd.exists?(pd.data().items||[]):[];
+
+    // Página empresa
+    if(empId&&!code){
+      const ed=await col.doc('emp_'+empId).get();
+      const emp=ed.exists?ed.data():null;
+      const eqs=equips.filter(x=>x.empresaId===empId);
+      const ps=allP.filter(x=>x.empId===empId);
+      const ms=allM.filter(m=>eqs.some(x=>x.id===m.equipId));
+      showEmpPage(emp,eqs,ps,ms);
+      return;
+    }
+
+    // Página equipamento
+    if(!code){show('<div class="card"><div class="empty"><i class="ti ti-qrcode-off" style="font-size:36px;opacity:.3"></i><p style="margin-top:10px">QR Code inválido.</p></div></div>');return;}
+    const eq=equips.find(x=>x.qrcode===code||x.id===code||x.tag===code);
+    if(!eq){show('<div class="card"><div class="empty"><i class="ti ti-search-off" style="font-size:36px;opacity:.3"></i><p style="margin-top:10px">Equipamento não encontrado.</p><p style="font-size:11px;margin-top:4px">Código: '+e(code)+'</p></div></div>');return;}
+    EQ=eq;
+    if(eq.empresaId){const ed=await col.doc('emp_'+eq.empresaId).get();if(ed.exists)EMP=ed.data();}
+    MANUT=allM.filter(m=>m.equipId===eq.id);
+    PMOCS=allP.filter(x=>x.empId===eq.empresaId);
+    showEqPage();
+  }catch(err){
+    console.error(err);
+    show('<div class="card"><div class="empty"><i class="ti ti-wifi-off" style="font-size:36px;opacity:.3"></i><p style="margin-top:10px">Erro ao carregar. Verifique a conexão.</p></div></div>');
   }
 }
 
-function show(html){document.getElementById('conteudo').innerHTML=html;}
+// ── Página equipamento ─────────────────────────────────────────────────────
+function showEqPage(){
+  document.getElementById('hsub').textContent='Consulta de equipamento';
+  var h='';
 
-function render(){
-  const eq=_eq,empresa=_empresa,manutencoes=_manut,pmocs=_pmocs;
-  let html='';
+  // Card do equipamento
+  h+='<div class="card">';
+  h+='<div class="eq-name">'+e(EQ.tipo)+(EQ.tag?' · <span style="color:var(--verde)">'+e(EQ.tag)+'</span>':'')+'</div>';
+  h+='<div class="eq-sub">'+e(((EQ.marca||'')+' '+(EQ.modelo||'')).trim())+'</div>';
+  if(EQ.freq)h+='<span class="badge"><i class="ti ti-tool" style="font-size:10px"></i> Manutenção '+e(EQ.freq)+'</span>';
+  h+='<div class="grid2">';
+  if(EQ.btu)h+='<div class="ib"><div class="lbl">Capacidade</div><div class="val">'+e(EQ.btu)+' BTU/h</div></div>';
+  if(EQ.gas)h+='<div class="ib"><div class="lbl">Refrigerante</div><div class="val">'+e(EQ.gas)+'</div></div>';
+  if(EQ.local)h+='<div class="ib"><div class="lbl">Localização</div><div class="val">'+e(EQ.local)+'</div></div>';
+  if(EQ.area)h+='<div class="ib"><div class="lbl">Área</div><div class="val">'+e(EQ.area)+' m²</div></div>';
+  if(EQ.patrimonio)h+='<div class="ib"><div class="lbl">Patrimônio</div><div class="val">'+e(EQ.patrimonio)+'</div></div>';
+  if(EQ.serie)h+='<div class="ib"><div class="lbl">Nº Série</div><div class="val">'+e(EQ.serie)+'</div></div>';
+  h+='</div></div>';
 
-  // Equipamento
-  html+='<div class="card">';
-  html+='<div class="eq-name">'+esc(eq.tipo)+(eq.tag?' · '+esc(eq.tag):'')+'</div>';
-  html+='<div class="eq-sub">'+esc(((eq.marca||'')+' '+(eq.modelo||'')).trim())+'</div>';
-  if(eq.freq) html+='<span class="badge">Manutenção '+esc(eq.freq)+'</span>';
-  html+='<div class="grid2">';
-  if(eq.btu)   html+='<div class="info"><div class="lbl">Capacidade</div><div class="val">'+esc(eq.btu)+' BTU</div></div>';
-  if(eq.gas)   html+='<div class="info"><div class="lbl">Refrigerante</div><div class="val">'+esc(eq.gas)+'</div></div>';
-  if(eq.local) html+='<div class="info"><div class="lbl">Localização</div><div class="val">'+esc(eq.local)+'</div></div>';
-  if(eq.area)  html+='<div class="info"><div class="lbl">Área</div><div class="val">'+esc(eq.area)+' m²</div></div>';
-  if(eq.patrimonio) html+='<div class="info"><div class="lbl">Patrimônio</div><div class="val">'+esc(eq.patrimonio)+'</div></div>';
-  if(eq.serie) html+='<div class="info"><div class="lbl">Nº Série</div><div class="val">'+esc(eq.serie)+'</div></div>';
-  html+='</div></div>';
-
-  // Empresa + outros equipamentos
-  if(empresa){
-    html+='<div class="card"><div class="card-title"><i class="ti ti-building"></i> Empresa</div>';
-    html+='<div class="info" style="margin-bottom:8px"><div class="lbl">Razão Social</div><div class="val">'+esc(empresa.nome)+'</div></div>';
-    if(empresa.cnpj) html+='<div class="info" style="margin-bottom:8px"><div class="lbl">CNPJ</div><div class="val">'+esc(empresa.cnpj)+'</div></div>';
-    const end=[empresa.rua,empresa.numero,empresa.bairro,empresa.cidade,empresa.uf].filter(Boolean).join(', ');
-    if(end) html+='<div class="info" style="margin-bottom:12px"><div class="lbl">Endereço</div><div class="val" style="font-size:12px">'+esc(end)+'</div></div>';
-
-    // Other equipment of same company
-    const outros=_todosEquips.filter(e=>e.empresaId===eq.empresaId && e.id!==eq.id);
-    if(outros.length>0){
-      html+='<div style="font-size:11px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Outros equipamentos desta empresa ('+outros.length+')</div>';
-      outros.forEach(e=>{
-        const url='?c='+(e.qrcode||e.id);
-        html+='<a class="eq-chip" href="'+url+'">';
-        html+='<div class="ico"><i class="ti ti-air-conditioning"></i></div>';
-        html+='<div class="inf"><div class="nm">'+esc(e.tipo)+(e.tag?' · '+esc(e.tag):'')+'</div>';
-        html+='<div class="sub">'+esc(e.local||'')+(e.btu?' · '+esc(e.btu)+' BTU':'')+'</div></div>';
-        html+='<i class="ti ti-chevron-right" style="color:var(--text-3);font-size:16px"></i></a>';
-      });
-    }
-    html+='</div>';
+  // Botão empresa
+  if(EMP){
+    h+='<div onclick="goEmp()" style="display:flex;align-items:center;gap:12px;background:var(--verde);color:white;border-radius:12px;padding:14px 16px;margin-bottom:12px;cursor:pointer">';
+    h+='<div style="width:40px;height:40px;background:rgba(255,255,255,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0"><i class="ti ti-building"></i></div>';
+    h+='<div style="flex:1"><div style="font-size:14px;font-weight:700">'+e(EMP.nome)+'</div>';
+    h+='<div style="font-size:11px;opacity:.85;margin-top:2px">Ver todos os equipamentos, PMOCs e pendências →</div></div>';
+    h+='</div>';
   }
 
-  // PMOCs com botão download
-  html+='<div class="card"><div class="card-title"><i class="ti ti-file-text"></i> Planos PMOC ('+pmocs.length+')</div>';
-  if(pmocs.length===0){
-    html+='<div class="empty">Nenhum plano PMOC disponível</div>';
-  }else{
-    pmocs.slice().reverse().forEach((p,idx)=>{
-      html+='<div class="pmoc-card">';
-      html+='<div class="pmoc-icon"><i class="ti ti-file-certificate"></i></div>';
-      html+='<div class="pmoc-info"><div class="num">PMOC '+(p.num||'')+'/'+(p.ano||'')+'</div>';
-      html+='<div class="dt">Gerado em '+esc(p.data||'')+(p.artNum?' · ART: '+esc(p.artNum):'')+'</div></div>';
-      html+='<button class="btn-down" onclick="baixarPMOC('+idx+')"><i class="ti ti-download"></i> PDF</button>';
-      html+='</div>';
-    });
-  }
-  html+='</div>';
-
-  // Manutenções — clickable
-  html+='<div class="card"><div class="card-title"><i class="ti ti-tool"></i> Manutenções ('+manutencoes.length+')</div>';
-  if(manutencoes.length===0){
-    html+='<div class="empty">Nenhuma manutenção registrada</div>';
-  }else{
-    manutencoes.slice().reverse().forEach((m,idx)=>{
+  // Manutenções
+  h+='<div class="card"><div class="card-title"><i class="ti ti-tool"></i> Manutenções ('+MANUT.length+')</div>';
+  if(!MANUT.length){h+='<div class="empty">Nenhuma manutenção registrada</div>';}
+  else{
+    MANUT.slice().reverse().forEach(function(m,i){
       const conf=(m.atividades||[]).filter(a=>a.status==='Conforme').length;
       const nconf=(m.atividades||[]).filter(a=>a.status==='Não conforme').length;
-      const total=(m.atividades||[]).length;
-      const chipCls=nconf>0?'chip-bad':conf===total&&total>0?'chip-ok':'chip-warn';
-      html+='<div class="manut-item" onclick="verManutencao('+idx+')">';
-      html+='<div class="top"><span class="data">'+esc(m.data)+(m.hora?' · '+esc(m.hora):'')+'</span>';
-      html+='<span class="chip '+chipCls+'">'+conf+'/'+total+' OK</span></div>';
-      html+='<div class="tec">👤 '+esc(m.tec1Nome||'')+(m.tec2Nome?' + '+esc(m.tec2Nome):'')+'</div>';
-      html+='<div style="font-size:11px;color:var(--text-3);margin-top:3px">Toque para ver detalhes →</div>';
-      html+='</div>';
+      const tot=(m.atividades||[]).length;
+      const cls=nconf>0?'chip-bad':conf===tot&&tot>0?'chip-ok':'chip-warn';
+      h+='<div class="manut-item" onclick="showManut('+i+')">';
+      h+='<div class="top"><span class="dtxt">'+e(m.data)+(m.hora?' · '+e(m.hora):'')+'</span><span class="chip '+cls+'">'+conf+'/'+tot+' OK</span></div>';
+      h+='<div class="tec">👤 '+e(m.tec1Nome||'')+(m.tec2Nome?' + '+e(m.tec2Nome):'')+'</div>';
+      if(nconf>0)h+='<div style="font-size:11px;color:var(--red);margin-top:3px">⚠ '+nconf+' não conforme(s)</div>';
+      h+='<div style="font-size:10px;color:var(--text-3);margin-top:3px">Toque para ver detalhes →</div>';
+      h+='</div>';
     });
   }
-  html+='</div>';
-
-  show(html);
+  h+='</div>';
+  show(h);
 }
 
-function baixarPMOC(idx){
-  const p=_pmocs.slice().reverse()[idx];
-  if(!p){alert('PMOC não disponível');return;}
-  if(typeof window.jspdf==='undefined'){alert('Aguarde...');return;}
-  const {jsPDF}=window.jspdf;
-  const doc=new jsPDF();
-  const M=15;let y=20;
-  doc.setFillColor(10,74,54);doc.rect(0,0,210,30,'F');
-  doc.setTextColor(255,255,255);doc.setFont(undefined,'bold');doc.setFontSize(16);
-  doc.text('PMOC — Plano de Manutenção',M,12);
-  doc.setFontSize(10);doc.setFont(undefined,'normal');
-  doc.text('Operação e Controle de Climatização',M,20);y=40;
-  doc.setTextColor(30,30,30);doc.setFontSize(11);doc.setFont(undefined,'bold');
-  doc.text('Empresa: '+(_empresa?.nome||p.empNome||''),M,y);y+=8;
-  doc.text('PMOC Nº: '+(p.num||'')+' / '+(p.ano||''),M,y);y+=8;
-  doc.text('Data: '+(p.data||''),M,y);y+=8;
-  if(p.artNum){doc.text('ART: '+p.artNum,M,y);y+=8;}
-  doc.setFont(undefined,'normal');
-  if(_eq) doc.text('Equipamento: '+(_eq.tipo||'')+((_eq.marca||'')?' — '+_eq.marca:''),M,y);
-  y+=8;if(_eq?.local) doc.text('Localização: '+_eq.local,M,y);
-  y+=12;doc.setFontSize(9);doc.setTextColor(100,100,100);
-  doc.text('Gerado via PMOC Digital · Eng. Alex Luiz de Souza Leandro',M,y);
-  doc.save('PMOC_'+(p.num||'')+'_'+(p.ano||'')+'.pdf');
+function goEmp(){
+  if(!EMP||!EQ)return;
+  const u=new URL(location.href);
+  u.searchParams.set('emp',EQ.empresaId);
+  u.searchParams.delete('c');u.searchParams.delete('e');
+  location.href=u.toString();
 }
 
-carregar();
+// ── Modal manutenção ───────────────────────────────────────────────────────
+function showManut(i){
+  const m=MANUT.slice().reverse()[i];
+  if(!m)return;
+  const conf=(m.atividades||[]).filter(a=>a.status==='Conforme').length;
+  const nconf=(m.atividades||[]).filter(a=>a.status==='Não conforme').length;
+  const pend=(m.atividades||[]).filter(a=>a.status==='Pendente').length;
+  const na=(m.atividades||[]).filter(a=>a.status==='N/A').length;
+  document.getElementById('mtitle').textContent='Manutenção · '+m.data+(m.hora?' às '+m.hora:'');
+  var b='';
+  b+='<div style="font-size:12px;color:var(--text-2);margin-bottom:12px">👤 '+e(m.tec1Nome||'')+(m.tec2Nome?' + '+e(m.tec2Nome):'')+'</div>';
+  b+='<div class="srow">';
+  b+='<div class="sbox" style="background:var(--verde-bg)"><div class="n" style="color:var(--verde)">'+conf+'</div><div class="l" style="color:var(--verde)">Conforme</div></div>';
+  b+='<div class="sbox" style="background:var(--red-bg)"><div class="n" style="color:var(--red)">'+nconf+'</div><div class="l" style="color:var(--red)">Não conf.</div></div>';
+  b+='<div class="sbox" style="background:var(--amber-bg)"><div class="n" style="color:var(--amber)">'+pend+'</div><div class="l" style="color:var(--amber)">Pendente</div></div>';
+  b+='<div class="sbox" style="background:#f4f4f4"><div class="n" style="color:var(--text-3)">'+na+'</div><div class="l" style="color:var(--text-3)">N/A</div></div>';
+  b+='</div>';
+  b+='<div style="font-size:11px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Check-list</div>';
+  (m.atividades||[]).forEach(a=>{
+    const cls=a.status==='Conforme'?'s-ok':a.status==='Não conforme'?'s-nok':a.status==='N/A'?'s-na':'s-pend';
+    const ico=a.status==='Conforme'?'✓':a.status==='Não conforme'?'✗':a.status==='N/A'?'—':'⚠';
+    b+='<div class="crow"><span style="flex:1;padding-right:8px">'+e(a.label)+'</span><span class="'+cls+'">'+ico+' '+e(a.status)+'</span></div>';
+  });
+  if(m.obs)b+='<div style="margin-top:12px;padding:10px;background:var(--bg);border-radius:8px;font-size:12px">📝 '+e(m.obs)+'</div>';
+  document.getElementById('mbody').innerHTML=b;
+  document.getElementById('mmodal').classList.add('open');
+}
+
+// ── Página empresa ─────────────────────────────────────────────────────────
+function showEmpPage(emp,equips,pmocs,manut){
+  // Header
+  document.getElementById('hsub').textContent=emp?emp.nome:'Empresa';
+  const hdr=document.getElementById('phdr');
+  if(!hdr.querySelector('.back-btn')){
+    const b=document.createElement('button');
+    b.className='back-btn';b.textContent='← Voltar';
+    b.onclick=()=>history.back();
+    hdr.appendChild(b);
+  }
+
+  var h='';
+
+  // Dados da empresa
+  if(emp){
+    h+='<div class="card">';
+    h+='<div style="font-size:18px;font-weight:700;margin-bottom:4px">'+e(emp.nome)+'</div>';
+    if(emp.cnpj)h+='<div style="font-size:13px;color:var(--text-2);margin-bottom:6px">CNPJ: '+e(emp.cnpj)+'</div>';
+    const addr=[emp.rua,emp.numero,emp.bairro,emp.cidade,emp.uf].filter(Boolean).join(', ');
+    if(addr)h+='<div style="font-size:12px;color:var(--text-2)"><i class="ti ti-map-pin" style="font-size:11px"></i> '+e(addr)+'</div>';
+    h+='</div>';
+  }
+
+  // Pendências e não conformidades
+  var pends=[];
+  equips.forEach(eq=>{
+    const eqM=manut.filter(m=>m.equipId===eq.id);
+    if(!eqM.length)return;
+    const ult=eqM.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+    const nc=(ult.atividades||[]).filter(a=>a.status==='Não conforme');
+    const pe=(ult.atividades||[]).filter(a=>a.status==='Pendente');
+    if(nc.length||pe.length) pends.push({eq,data:ult.data,nc,pe});
+  });
+
+  if(pends.length){
+    h+='<div class="card">';
+    h+='<div class="card-title" style="color:var(--red)"><i class="ti ti-alert-triangle"></i> Pendências e Não Conformidades</div>';
+    h+='<p style="font-size:11px;color:var(--text-2);margin-bottom:10px">Baseado na última manutenção de cada equipamento</p>';
+    pends.forEach(p=>{
+      const lbl=(p.eq.tipo||'Equip.')+(p.eq.tag?' · '+p.eq.tag:'')+(p.eq.local?' ('+p.eq.local+')':'');
+      if(p.nc.length){
+        h+='<div class="pend-item"><div class="pend-eq"><i class="ti ti-x" style="font-size:10px"></i> '+e(lbl)+' · '+e(p.data)+'</div>';
+        p.nc.forEach(a=>h+='<div class="pend-txt">• '+e(a.label)+'</div>');
+        h+='</div>';
+      }
+      if(p.pe.length){
+        h+='<div class="warn-item"><div class="warn-eq"><i class="ti ti-clock" style="font-size:10px"></i> '+e(lbl)+' · Pendente</div>';
+        p.pe.forEach(a=>h+='<div style="color:#7a5a1a;font-size:12px">• '+e(a.label)+'</div>');
+        h+='</div>';
+      }
+    });
+    h+='</div>';
+  } else if(manut.length){
+    h+='<div class="card" style="background:var(--verde-bg);border:1px solid #b0ddc9">';
+    h+='<div style="display:flex;align-items:center;gap:10px">';
+    h+='<i class="ti ti-circle-check" style="font-size:28px;color:var(--verde)"></i>';
+    h+='<div><div style="font-weight:700;color:var(--verde)">Tudo conforme!</div><div style="font-size:12px;color:var(--verde-mid)">Nenhuma pendência nas últimas manutenções.</div></div>';
+    h+='</div></div>';
+  }
+
+  // Lista equipamentos
+  h+='<div class="card"><div class="card-title"><i class="ti ti-air-conditioning"></i> Equipamentos ('+equips.length+')</div>';
+  if(!equips.length){h+='<div class="empty">Nenhum equipamento cadastrado</div>';}
+  else{
+    equips.forEach(eq=>{
+      const eqM=manut.filter(m=>m.equipId===eq.id);
+      const ult=eqM.length?eqM.slice().sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0]:null;
+      let statusChip='';
+      if(ult){
+        const nc=(ult.atividades||[]).filter(a=>a.status==='Não conforme').length;
+        const pe=(ult.atividades||[]).filter(a=>a.status==='Pendente').length;
+        statusChip=nc>0?'<span class="chip chip-bad" style="margin-left:6px">'+nc+' NC</span>':
+          pe>0?'<span class="chip chip-warn" style="margin-left:6px">Pendente</span>':
+          '<span class="chip chip-ok" style="margin-left:6px">OK</span>';
+      }
+      const code=eq.qrcode||eq.id;
+      h+='<a class="eq-chip" href="?c='+e(code)+'">';
+      h+='<div class="ico"><i class="ti ti-air-conditioning"></i></div>';
+      h+='<div style="flex:1"><div style="font-size:13px;font-weight:600">'+e(eq.tipo)+(eq.tag?' · '+e(eq.tag):'')+statusChip+'</div>';
+      h+='<div style="font-size:11px;color:var(--text-3)">'+e(eq.local||'')+(eq.btu?' · '+e(eq.btu)+' BTU':'')+'</div>';
+      if(ult)h+='<div style="font-size:10px;color:var(--text-3);margin-top:2px">Última manutenção: '+e(ult.data)+'</div>';
+      h+='</div><i class="ti ti-chevron-right" style="color:var(--text-3);font-size:16px;flex-shrink:0"></i></a>';
+    });
+  }
+  h+='</div>';
+
+  // PMOCs
+  h+='<div class="card"><div class="card-title"><i class="ti ti-file-text"></i> Planos PMOC ('+pmocs.length+')</div>';
+  if(!pmocs.length){h+='<div class="empty">Nenhum PMOC gerado</div>';}
+  else{
+    pmocs.slice().reverse().forEach(p=>{
+      h+='<div class="pmoc-row">';
+      h+='<div class="pmoc-ico"><i class="ti ti-file-certificate"></i></div>';
+      h+='<div style="flex:1"><div class="pmoc-num">PMOC '+(p.num||'')+'/'+(p.ano||'')+'</div>';
+      h+='<div class="pmoc-dt">'+e(p.data||'')+(p.artNum?' · ART: '+e(p.artNum):'')+'</div></div>';
+      if(p.artNum){
+        h+='<div style="background:var(--verde-bg);color:var(--verde);border-radius:8px;padding:6px 10px;font-size:11px;font-weight:600;flex-shrink:0">';
+        h+='<i class="ti ti-file-certificate" style="font-size:11px"></i> '+e(p.artNum)+'</div>';
+      }
+      h+='</div>';
+    });
+  }
+  h+='</div>';
+
+  show(h);
+}
+
+load();
 </script>
 </body>
 </html>

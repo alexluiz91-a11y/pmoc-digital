@@ -2641,28 +2641,92 @@ function gerarPDF(empresa, equips, ano, num, exec, tec, soVisualizacao, execEmpO
 
   y += 43;
 
+  // ── EMPRESA EXECUTORA (dados completos) ────────────────────────────────
+  const execEndStr = [meData?.rua, meData?.numero, meData?.bairro, meData?.cidade, meData?.uf].filter(Boolean).join(', ');
+  const execBoxH = 38;
   doc.setFillColor(248, 248, 248);
-  doc.rect(M, y, W - M * 2, 22, 'F');
-  doc.setDrawColor(220, 220, 220);
-  doc.rect(M, y, W - M * 2, 22, 'S');
-  doc.setTextColor(10, 74, 54); doc.setFont(undefined, 'bold'); doc.setFontSize(8.5);
-  doc.text('EMPRESA EXECUTORA DA MANUTENÇÃO', M + 4, y + 7);
-  doc.setTextColor(30, 30, 30); doc.setFont(undefined, 'normal');
-  doc.text('Empresa: ' + (exec || 'Não informado'), M + 4, y + 13);
-  doc.text('Técnico responsável: ' + (tec || 'Não informado') + '  |  Contato da edificação: ' + (empresa.contato || empresa.tel || '--'), M + 4, y + 19);
-  
-  y += 26;
+  doc.rect(M, y, W - M * 2, execBoxH, 'F');
+  doc.setDrawColor(180, 220, 205);
+  doc.rect(M, y, W - M * 2, execBoxH, 'S');
+  doc.setFillColor(10, 74, 54);
+  doc.rect(M, y, W - M * 2, 9, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont(undefined, 'bold'); doc.setFontSize(8.5);
+  doc.text('EMPRESA EXECUTORA DA MANUTENÇÃO', M + 4, y + 6);
+  doc.setTextColor(30, 30, 30); doc.setFont(undefined, 'normal'); doc.setFontSize(8.5);
+  doc.text('Razão Social: ' + (meData?.nome || exec || 'Não informado'), M + 4, y + 15);
+  doc.text('CNPJ: ' + (meData?.cnpj || '--') + '   Tel: ' + (meData?.tel || '--'), M + 4, y + 21);
+  doc.text('E-mail: ' + (meData?.email || '--'), M + 4, y + 27);
+  if (execEndStr) doc.text('Endereço: ' + execEndStr + (meData?.cep ? ' — CEP: ' + meData.cep : ''), M + 4, y + 33);
+  const respTec = meData?.resp || tec || '';
+  const crea = meData?.crea || '';
+  if (respTec) doc.text('Resp. Técnico: ' + respTec + (crea ? '   CREA/CFT: ' + crea : ''), W - M - 4, y + 21, { align: 'right' });
+  y += execBoxH + 6;
 
-  // Summary
-  doc.setTextColor(10, 74, 54); doc.setFont(undefined, 'bold'); doc.setFontSize(9);
-  doc.text('RESUMO DO SISTEMA', M, y);
-  y += 6;
-  doc.setFont(undefined, 'normal'); doc.setFontSize(8);
-  doc.setTextColor(30,30,30);
-  doc.text(`Total de equipamentos: ${equips.length}`, M, y);
-  doc.text(`Tipos: ${[...new Set(equips.map(e => e.tipo))].join(', ')}`, M, y + 5);
+  // ── TABELA RESUMO DOS EQUIPAMENTOS ──────────────────────────────────────
+  checkPage(60);
+  doc.setFillColor(10, 74, 54);
+  doc.rect(M, y, W - M * 2, 9, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont(undefined, 'bold'); doc.setFontSize(8.5);
+  doc.text('RESUMO DOS EQUIPAMENTOS', M + 4, y + 6);
+  y += 9;
 
-  y += 14;
+  // Table header
+  const cols = { amb: M, marca: M+52, btu: M+95, fix: M+122, flut: M+140 };
+  doc.setFillColor(224, 244, 236);
+  doc.rect(M, y, W - M * 2, 7, 'F');
+  doc.setTextColor(10, 74, 54); doc.setFont(undefined, 'bold'); doc.setFontSize(7.5);
+  doc.text('Ambiente / Local', cols.amb + 2, y + 5);
+  doc.text('Marca / Modelo', cols.marca + 2, y + 5);
+  doc.text('BTU/h', cols.btu + 2, y + 5);
+  doc.text('Fixos', cols.fix + 2, y + 5);
+  doc.text('Flutuantes', cols.flut + 2, y + 5);
+  y += 7;
+
+  let totalBTU = 0;
+  let totalFixos = 0;
+  let totalFlutuantes = 0;
+
+  equips.forEach(function(eq, i) {
+    checkPage(8);
+    const btuVal = parseInt((eq.btu || '0').toString().replace(/\D/g, '')) || 0;
+    const fixVal = parseInt(eq.pessoasFixas || eq['pessoas-fixas'] || 0) || 0;
+    const flutVal = parseInt(eq.pessoasFlutuantes || eq['pessoas-flut'] || 0) || 0;
+    const totalPes = fixVal + flutVal;
+    const btuTotal = btuVal * (totalPes || 1);
+    totalBTU += btuVal;
+    totalFixos += fixVal;
+    totalFlutuantes += flutVal;
+
+    if (i % 2 === 0) {
+      doc.setFillColor(250, 253, 251);
+      doc.rect(M, y, W - M * 2, 7, 'F');
+    }
+    doc.setDrawColor(220, 235, 228);
+    doc.line(M, y + 7, W - M, y + 7);
+    doc.setTextColor(30, 30, 30); doc.setFont(undefined, 'normal'); doc.setFontSize(7.5);
+
+    const local = (eq.local || eq.tipo || '--').substring(0, 28);
+    const marcaModelo = ((eq.marca || '') + ' ' + (eq.modelo || '')).trim().substring(0, 22) || '--';
+    doc.text(local, cols.amb + 2, y + 5);
+    doc.text(marcaModelo, cols.marca + 2, y + 5);
+    doc.text(btuVal > 0 ? btuVal.toLocaleString('pt-BR') : '--', cols.btu + 2, y + 5);
+    doc.text(fixVal > 0 ? String(fixVal) : '--', cols.fix + 2, y + 5);
+    doc.text(flutVal > 0 ? String(flutVal) : '--', cols.flut + 2, y + 5);
+    y += 7;
+  });
+
+  // Totals row
+  checkPage(10);
+  doc.setFillColor(10, 74, 54);
+  doc.rect(M, y, W - M * 2, 8, 'F');
+  doc.setTextColor(255, 255, 255); doc.setFont(undefined, 'bold'); doc.setFontSize(7.5);
+  doc.text('TOTAL', cols.amb + 2, y + 5.5);
+  doc.text(String(equips.length) + ' equipamento(s)', cols.marca + 2, y + 5.5);
+  doc.text(totalFixos > 0 ? String(totalFixos) : '--', cols.fix + 2, y + 5.5);
+  doc.text(totalFlutuantes > 0 ? String(totalFlutuantes) : '--', cols.flut + 2, y + 5.5);
+  doc.text('Total: ' + (totalBTU > 0 ? totalBTU.toLocaleString('pt-BR') + ' BTU/h' : '--'), W - M - 4, y + 5.5, { align: 'right' });
+  y += 12;
+
   doc.setDrawColor(200, 200, 200); doc.line(M, y, W - M, y);
 
   // ── PÁGINA DE INTRODUÇÃO ──────────────────────────────────────────────────
