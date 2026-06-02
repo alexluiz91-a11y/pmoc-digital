@@ -1251,83 +1251,85 @@ if (!db.tecnicos)    db.tecnicos    = [];
 if (!db.manutencoes) db.manutencoes = [];
 let currentUser = JSON.parse(localStorage.getItem('pmoc_user') || 'null');
 
-// ===== BACKUP LOCAL (ponto de restauração) =================================
-// Salva backup com timestamp — mantém os últimos 3 backups
+// ===== SYNC & BACKUP =======================================================
+
+// ── Backup local (3 snapshots) ─────────────────────────────────────────────
 function salvarBackupLocal() {
   try {
-    const ts = new Date().toISOString();
     const backups = JSON.parse(localStorage.getItem('pmoc_backups') || '[]');
-    backups.unshift({ ts, data: JSON.stringify(db) });
-    // Manter apenas os 3 últimos
+    backups.unshift({ ts: new Date().toISOString(), data: JSON.stringify(db) });
     while (backups.length > 3) backups.pop();
     localStorage.setItem('pmoc_backups', JSON.stringify(backups));
-  } catch(e) { console.warn('Backup local falhou:', e); }
+  } catch(e) {}
 }
 
-// Pendências offline
-let pendenciasOffline = JSON.parse(localStorage.getItem('pmoc_pendencias') || '0');
+// ── Offline pending counter ────────────────────────────────────────────────
+let pendenciasOffline = parseInt(localStorage.getItem('pmoc_pendencias') || '0');
+
 function marcarPendenciaOffline() {
   pendenciasOffline++;
-  localStorage.setItem('pmoc_pendencias', pendenciasOffline);
+  localStorage.setItem('pmoc_pendencias', String(pendenciasOffline));
   mostrarAvisoOffline();
 }
 function limparPendencias() {
   pendenciasOffline = 0;
   localStorage.setItem('pmoc_pendencias', '0');
-  fecharLembrete();
+  const bar = document.getElementById('sync-lembrete');
+  if (bar) bar.style.display = 'none';
 }
 function mostrarAvisoOffline() {
   const bar = document.getElementById('sync-lembrete');
+  const txt = document.getElementById('sync-lembrete-txt');
   if (!bar) return;
   if (!navigator.onLine) {
     bar.style.display = 'flex';
-    const span = document.getElementById('sync-lembrete-txt');
-    if (span) span.textContent = '📵 Sem internet. ' + pendenciasOffline + ' alteração(ões) salvas localmente. Serão enviadas ao conectar.';
+    if (txt) txt.textContent = '📵 Sem internet — ' + pendenciasOffline + ' alteração(ões) salva(s) localmente. Enviará ao reconectar.';
   } else if (pendenciasOffline > 0) {
     bar.style.display = 'flex';
-    const span = document.getElementById('sync-lembrete-txt');
-    if (span) span.innerHTML = '⚠️ ' + pendenciasOffline + ' alteração(ões) pendente(s) na nuvem. <b>Clique em Enviar.</b>';
+    if (txt) txt.innerHTML = '⚠️ ' + pendenciasOffline + ' alteração(ões) não enviada(s). <b>Clique em Enviar.</b>';
   } else {
-    fecharLembrete();
+    bar.style.display = 'none';
   }
 }
 
-// Salvar na nuvem automaticamente ao reconectar
+// ── Auto-reconnect send ────────────────────────────────────────────────────
 window.addEventListener('online', () => {
-  console.log('Online — tentando enviar pendências...');
   if (pendenciasOffline > 0 && currentUser && currentUser.gdrive) {
-    enviarDados(true).then(() => { limparPendencias(); showToast('✓ Dados pendentes enviados para a nuvem!', 'success'); });
+    enviarDados(true)
+      .then(() => { limparPendencias(); showToast('✓ Dados enviados à nuvem!', 'success'); })
+      .catch(() => {});
+  } else {
+    mostrarAvisoOffline();
   }
-  mostrarAvisoOffline();
 });
 window.addEventListener('offline', () => { mostrarAvisoOffline(); });
 
-// Save to localStorage AND Firestore (auto-save completo)
-let autoSaveTimer = null;
+// ── Main save function ─────────────────────────────────────────────────────
+let _syncTimer = null;
 function saveDb() {
+  // 1. Always save locally first
   localStorage.setItem('pmoc_v2', JSON.stringify(db));
   salvarBackupLocal();
 
+  // 2. Send to cloud if logged in with Google
   if (currentUser && currentUser.gdrive) {
     if (navigator.onLine) {
-      // Debounce 3s — after modal closes
-      clearTimeout(autoSaveTimer);
-      autoSaveTimer = setTimeout(() => {
-        enviarDados(true).then(() => { limparPendencias(); }).catch(() => { marcarPendenciaOffline(); });
-      }, 3000);
+      clearTimeout(_syncTimer);
+      _syncTimer = setTimeout(function() {
+        enviarDados(true)
+          .then(function() { limparPendencias(); })
+          .catch(function() { marcarPendenciaOffline(); });
+      }, 1500); // 1.5s debounce — fast enough, after modal closes
     } else {
       marcarPendenciaOffline();
     }
   } else {
-    // Login local
-    if (pendenciasOffline === 0) marcarPendenciaOffline();
-    else mostrarAvisoOffline();
+    // Local login — show reminder to use Google
+    mostrarAvisoOffline();
   }
 }
 
-let lembreteTimer = null;
 function lembreteSincronizar() { mostrarAvisoOffline(); }
-
 function fecharLembrete() {
   const bar = document.getElementById('sync-lembrete');
   if (bar) bar.style.display = 'none';
@@ -1602,9 +1604,12 @@ function forcarFecharModal(id) {
   const el = document.getElementById(id);
   if (!el) return;
   el.classList.remove('open');
-  el.style.display = 'none';
-  el.style.visibility = 'hidden';
-  setTimeout(() => { if (el && !el.classList.contains('open')) { el.style.display = ''; el.style.visibility = ''; }}, 600);
+  el.style.cssText = 'display:none!important;visibility:hidden!important';
+  setTimeout(function() {
+    if (el && !el.classList.contains('open')) {
+      el.style.cssText = '';
+    }
+  }, 700);
 }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 function hoje() { return new Date().toLocaleDateString('pt-BR'); }
