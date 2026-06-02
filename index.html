@@ -2271,6 +2271,51 @@ function filtrarEmpresas(filtro, el) {
   renderEmpresas();
 }
 
+function carregarArquivoART(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('ART muito grande. Máximo 5MB.', 'error');
+    input.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const b64 = e.target.result; // full data URL
+    document.getElementById('pmoc-art-data64').value = b64;
+    const label = document.getElementById('pmoc-art-file-label');
+    if (label) label.textContent = '✓ ' + file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
+    const clearBtn = document.getElementById('pmoc-art-clear-btn');
+    if (clearBtn) clearBtn.style.display = 'inline-flex';
+    showToast('ART anexada: ' + file.name, 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function limparART() {
+  document.getElementById('pmoc-art-data64').value = '';
+  const fileInput = document.getElementById('pmoc-art-file');
+  if (fileInput) fileInput.value = '';
+  const label = document.getElementById('pmoc-art-file-label');
+  if (label) label.textContent = 'Clique para anexar PDF da ART';
+  const clearBtn = document.getElementById('pmoc-art-clear-btn');
+  if (clearBtn) clearBtn.style.display = 'none';
+}
+
+function verART(pmocIdOrB64) {
+  // Accept either a PMOC id or a direct base64 string
+  let artB64 = pmocIdOrB64;
+  if (!artB64.startsWith('data:')) {
+    const pmoc = db.pmocs.find(p => p.id === pmocIdOrB64);
+    artB64 = pmoc?.artB64 || '';
+  }
+  if (!artB64) { showToast('ART não anexada neste PMOC', 'error'); return; }
+  const win = window.open('');
+  if (!win) { showToast('Popup bloqueado. Permita popups.', 'error'); return; }
+  win.document.write('<html><body style="margin:0"><iframe src="' + artB64 + '" style="width:100%;height:100vh;border:none"></iframe></body></html>');
+  win.document.close();
+}
+
 function renderPMOC() {
   // PMOC
   const pmocList = document.getElementById('pmoc-list');
