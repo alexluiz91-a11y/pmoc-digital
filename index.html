@@ -1750,7 +1750,7 @@ function irTela(nome, el) {
   document.getElementById('s-' + nome).classList.add('active');
   el.classList.add('active');
   telaAtual = nome;
-  if (nome === 'qrcode') popularSelectQR();
+  if (nome === 'qrcode') { popularExecQR(); atualizarPreviewQR(); }
   if (nome === 'equip') { preencherSelects(); renderEquip(); }
   if (nome === 'pmoc') renderPMOC();
   if (nome === 'manutencao') { popularEmpresasManut(); popularSelectsTecnicos(); }
@@ -2260,6 +2260,8 @@ function renderAll() {
   // Empresas
   renderEmpresas();
   renderPMOC();
+
+  popularExecQR();
 }
 
 let empFiltroAtual = 'todos';
