@@ -1923,6 +1923,7 @@ function salvarEmpresa() {
   if (isEdit) { const i = db.empresas.findIndex(e => e.id === id); db.empresas[i] = obj; }
   else db.empresas.push(obj);
   saveDb();
+  salvarNoFirestore();
   addAtividade(`Empresa "${nome}" ${isEdit ? 'atualizada' : 'cadastrada'}`);
   resetForm(['emp-id','emp-nome','emp-cnpj','emp-cep','emp-rua','emp-numero','emp-bairro','emp-cidade','emp-uf','emp-comp','emp-tel','emp-email','emp-contato','emp-obs','emp-resp','emp-crea','emp-formacao']);
   setTipoEmpresa('cliente');
@@ -2010,6 +2011,7 @@ function salvarEquip() {
   if (isEdit) { const i = db.equipamentos.findIndex(e => e.id === id); db.equipamentos[i] = obj; }
   else db.equipamentos.push(obj);
   saveDb();
+  salvarNoFirestore();
   addAtividade(`Equipamento "${tipo}" cadastrado`);
   document.getElementById('eq-id').value = '';
   const _p = document.getElementById('eq-patrimonio'); if (_p) _p.value = '';
@@ -2515,6 +2517,7 @@ function confirmarGerar() {
   db.pmocs.push({ id: uid(), empId, empNome: empresa.nome, num, ano, data: hoje(), equips: equips.length, user: currentUser?.nome || 'Usuário', execNome: exec, tecNome: tec, artNum: artNumSave, artData: artDataSave, artB64: artB64Save });
   limparART();
   saveDb();
+  salvarNoFirestore();
   addAtividade(`PMOC ${num} gerado para ${empresa.nome}`);
   fecharModal('m-gerar-pmoc');
   showToast('PMOC gerado e baixado!', 'success');
@@ -3095,6 +3098,7 @@ function salvarTecnico() {
   if (isEdit) { const i = db.tecnicos.findIndex(t => t.id === id); db.tecnicos[i] = obj; }
   else db.tecnicos.push(obj);
   saveDb();
+  salvarNoFirestore();
   ['tec-id','tec-nome','tec-crea','tec-esp','tec-tel','tec-email','tec-obs'].forEach(i => { const el=document.getElementById(i); if(el) el.value=''; });
   document.getElementById('tec-modal-title').textContent = 'Cadastrar técnico';
   forcarFecharModal('m-tec-form');
@@ -3311,6 +3315,7 @@ function salvarManutencao() {
 
   db.manutencoes.push(reg);
   saveDb();
+  salvarNoFirestore();
   addAtividade('Manutenção registrada: ' + equip?.tipo + ' em ' + empresa?.nome);
   showToast('Inspeção registrada!', 'success');
   limparFormManut();
